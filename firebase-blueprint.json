@@ -1,0 +1,32 @@
+{
+  "entities": {
+    "AssessmentRecord": {
+      "title": "Assessment Record",
+      "description": "School assessment record for a grade and class",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacher_id": { "type": "string" },
+        "academic_year": { "type": "string" },
+        "term_id": { "type": "string" },
+        "month_id": { "type": "string" },
+        "assess_num": { "type": "number" },
+        "grade": { "type": "string" },
+        "class_num": { "type": "number" },
+        "assess_date": { "type": "string" },
+        "notes": { "type": "string" },
+        "created_at": { "type": "string" },
+        "timing_status": { "type": "string" },
+        "timing_period": { "type": "string" },
+        "model_form": { "type": "string" }
+      },
+      "required": ["id", "teacher_id", "academic_year", "term_id", "month_id", "assess_num", "grade", "class_num", "assess_date"]
+    }
+  },
+  "firestore": {
+    "/assessments/{assessmentId}": {
+      "schema": "AssessmentRecord",
+      "description": "Collection of assessment records created by teachers"
+    }
+  }
+}
