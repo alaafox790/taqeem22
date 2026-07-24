@@ -250,6 +250,16 @@ export async function deleteFirebaseStudent(studentId: string): Promise<boolean>
   }
 }
 
+export async function deleteFirebaseAttendance(attendanceId: string): Promise<boolean> {
+  try {
+    await deleteDoc(doc(db, 'attendance', attendanceId));
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `attendance/${attendanceId}`);
+    return false;
+  }
+}
+
 export async function saveFirebaseTeacher(teacher: any): Promise<boolean> {
   if (!db) return false;
   try {

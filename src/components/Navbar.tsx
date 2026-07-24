@@ -57,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2]" />
               </div>
               <div className="flex flex-col justify-center">
-                <h1 className="text-sm sm:text-lg font-black bg-gradient-to-l from-indigo-800 to-violet-800 bg-clip-text text-transparent leading-tight tracking-tight">
+                <h1 className="text-sm sm:text-lg font-black bg-gradient-to-l from-violet-600 via-fuchsia-600 to-orange-500 bg-clip-text text-transparent leading-tight tracking-tight">
                   سجل التقييمات
                 </h1>
                 <span className="text-[10px] sm:text-xs font-extrabold text-slate-500 tracking-wide mt-0.5">
@@ -81,9 +81,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Teacher Info Button - Mobile & Desktop */}
             <button
               onClick={onOpenProfile}
-              className="flex md:hidden items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-xs font-bold shrink-0"
+              className="flex md:hidden items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/80 backdrop-blur-md text-slate-700 hover:bg-white transition-all text-xs font-bold shrink-0 shadow-sm border border-slate-200"
             >
-              <div className="w-6 h-6 rounded-lg bg-emerald-500 text-slate-950 font-black text-[11px] flex items-center justify-center">
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white font-extrabold text-[11px] flex items-center justify-center">
                 {teacher.name.charAt(0) || 'م'}
               </div>
               <span className="max-w-[80px] truncate">{teacher.name}</span>
@@ -92,17 +92,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Center / Bottom: Navigation Tabs Bar */}
-          <div className="flex items-center justify-between md:justify-center gap-0.5 sm:gap-1.5 w-full md:w-auto bg-slate-50 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between md:justify-center gap-0.5 sm:gap-1.5 w-full md:w-auto bg-slate-50/80 backdrop-blur-md p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-200/60 shadow-inner overflow-hidden">
             {/* Tab 1: Assessments */}
             <button
               onClick={() => onSelectTab('assessments')}
               className={`flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer ${
                 activeTab === 'assessments'
-                  ? 'bg-white text-emerald-800 shadow-sm border border-emerald-100 ring-1 ring-emerald-50/50 sm:scale-105'
+                  ? 'bg-white text-rose-600 shadow-[0_4px_15px_rgb(225,29,72,0.1)] border border-rose-100 ring-1 ring-rose-50/50 sm:scale-105'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
               }`}
             >
-              <LayoutGrid className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'assessments' ? 'text-emerald-600' : 'text-slate-400'}`} />
+              <LayoutGrid className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'assessments' ? 'text-rose-500' : 'text-slate-400'}`} />
               <span className="whitespace-nowrap">التقييمات</span>
             </button>
 
@@ -111,11 +111,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onSelectTab('students')}
               className={`flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer ${
                 activeTab === 'students'
-                  ? 'bg-white text-teal-800 shadow-sm border border-teal-100 ring-1 ring-teal-50/50 sm:scale-105'
+                  ? 'bg-white text-blue-600 shadow-[0_4px_15px_rgb(37,99,235,0.1)] border border-blue-100 ring-1 ring-blue-50/50 sm:scale-105'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
               }`}
             >
-              <Users className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'students' ? 'text-teal-600' : 'text-slate-400'}`} />
+              <Users className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'students' ? 'text-blue-500' : 'text-slate-400'}`} />
               <span className="whitespace-nowrap">سجل الطلاب</span>
             </button>
 
@@ -124,11 +124,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onSelectTab('stats')}
               className={`flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer ${
                 activeTab === 'stats'
-                  ? 'bg-white text-indigo-800 shadow-sm border border-indigo-100 ring-1 ring-indigo-50/50 sm:scale-105'
+                  ? 'bg-white text-emerald-600 shadow-[0_4px_15px_rgb(16,185,129,0.1)] border border-emerald-100 ring-1 ring-emerald-50/50 sm:scale-105'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
               }`}
             >
-              <BarChart3 className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'stats' ? 'text-indigo-600' : 'text-slate-400'}`} />
+              <BarChart3 className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'stats' ? 'text-emerald-500' : 'text-slate-400'}`} />
               <span className="whitespace-nowrap">الإحصائيات</span>
             </button>
 
@@ -137,11 +137,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onSelectTab('reports')}
               className={`flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer ${
                 activeTab === 'reports'
-                  ? 'bg-white text-rose-800 shadow-sm border border-rose-100 ring-1 ring-rose-50/50 sm:scale-105'
+                  ? 'bg-white text-violet-600 shadow-[0_4px_15px_rgb(124,58,237,0.1)] border border-violet-100 ring-1 ring-violet-50/50 sm:scale-105'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
               }`}
             >
-              <ScrollText className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'reports' ? 'text-rose-600' : 'text-slate-400'}`} />
+              <ScrollText className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'reports' ? 'text-violet-500' : 'text-slate-400'}`} />
               <span className="whitespace-nowrap">التقارير</span>
             </button>
           </div>
@@ -174,17 +174,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Teacher Info Pill */}
             <button
               onClick={onOpenProfile}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all cursor-pointer shadow-xs border border-slate-800"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/80 backdrop-blur-md text-slate-700 hover:bg-white transition-all cursor-pointer shadow-sm border border-slate-200"
               title="اضغط لتعديل اسم المعلم والمادة"
             >
-              <div className="w-7 h-7 rounded-lg bg-emerald-500 text-slate-950 font-extrabold text-xs flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white font-extrabold text-xs flex items-center justify-center">
                 {teacher.name.charAt(0) || 'م'}
               </div>
               <div className="text-right leading-tight">
-                <div className="text-xs font-bold text-slate-100 max-w-[130px] truncate">
+                <div className="text-xs font-bold text-slate-700 max-w-[130px] truncate">
                   {teacher.name}
                 </div>
-                <div className="text-[10px] text-emerald-400 font-medium truncate max-w-[130px]">
+                <div className="text-[10px] text-slate-500 font-medium truncate max-w-[130px]">
                   {teacher.subject} - {teacher.school}
                 </div>
               </div>

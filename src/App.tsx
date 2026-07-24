@@ -384,7 +384,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fbfe] text-slate-800 font-['Tajawal',sans-serif] pb-16 dir-rtl transition-colors duration-200">
+    <div className="min-h-screen bg-[#fafcff] text-slate-800 font-['Tajawal',sans-serif] pb-16 dir-rtl transition-colors duration-200">
       
       {/* Top Navbar with Screen Tabs - Hide on Home Screen */}
       {activeTab !== 'home' && (
@@ -470,6 +470,9 @@ export default function App() {
               selectedMonthId={selectedMonth.id}
               teacherId={teacher.id}
               isFirebaseConnected={isFirebaseConnected}
+              onDeleteRecordsForClass={(grade, classNum) => {
+                setRecords(prev => prev.filter(r => !(r.grade === grade && r.class_num === classNum)));
+              }}
             />
           </div>
         )}

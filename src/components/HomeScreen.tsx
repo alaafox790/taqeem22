@@ -32,10 +32,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
       <div className="w-full max-w-2xl flex justify-end">
         <button
           onClick={onOpenProfile}
-          className="flex items-center gap-2 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-white/70 backdrop-blur-md shadow-sm border border-white/80 hover:bg-white transition-all active:scale-95 text-slate-700"
+          className="flex items-center gap-2 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-white/80 backdrop-blur-xl shadow-lg shadow-violet-500/5 border border-white hover:bg-white hover:shadow-violet-500/10 transition-all active:scale-95 text-slate-700"
           title="تعديل بيانات المعلم"
         >
-          <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 font-extrabold text-xs flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white font-extrabold text-xs flex items-center justify-center">
             {teacher.name.charAt(0) || 'م'}
           </div>
           <div className="text-right hidden sm:block leading-tight">
@@ -46,15 +46,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
               {teacher.subject}
             </div>
           </div>
-          <Settings className="w-5 h-5 text-slate-400" />
+          <Settings className="w-5 h-5 text-indigo-200" />
         </button>
       </div>
 
       {/* Header */}
       <div className="text-center space-y-2 flex flex-col items-center relative">
         {/* Glow blobs to make the glass effect visible */}
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-400/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-400/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-fuchsia-400/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
+        <div className="absolute top-20 left-0 w-72 h-72 bg-amber-300/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
+        <div className="absolute -bottom-20 left-20 w-64 h-64 bg-cyan-400/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
         
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -63,7 +64,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
         >
           {/* Shiny sweep effect (auto running) */}
           <div className="absolute inset-0 -translate-x-[150%] animate-[shimmer_3s_infinite] bg-gradient-to-r from-transparent via-white/80 to-transparent skew-x-12 w-[150%]"></div>
-          <h1 className="relative text-4xl sm:text-5xl md:text-6xl font-black bg-gradient-to-r from-[#1e3a8a] to-[#0284c7] bg-clip-text text-transparent drop-shadow-md">
+          <h1 className="relative text-4xl sm:text-5xl md:text-6xl font-black bg-gradient-to-r from-violet-600 via-fuchsia-600 to-orange-500 bg-clip-text text-transparent drop-shadow-md">
             تقييماتي
           </h1>
         </motion.div>
@@ -71,7 +72,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-sm text-slate-500 font-bold tracking-wider relative z-10"
+          className="text-sm text-fuchsia-600/80 font-black tracking-widest relative z-10"
         >
           مدمرة حياتي
         </motion.p>
@@ -85,12 +86,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
           onClick={() => onNavigate('assessments')}
-          className="group bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 flex flex-col items-center justify-center gap-1 sm:gap-3 shadow-sm border border-slate-100 hover:shadow-md transition-all active:scale-95"
+          className="group bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95"
         >
-          <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-md shadow-indigo-500/30 flex items-center justify-center mb-1 transition-all group-hover:shadow-lg group-hover:shadow-indigo-500/40">
-            <Award className="w-6 h-6 sm:w-8 sm:h-8 text-white group-hover:-rotate-12 group-hover:scale-110 transition-transform duration-300" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-rose-400 to-orange-400 text-white shadow-lg shadow-rose-400/30 flex items-center justify-center transition-all group-hover:shadow-rose-400/50 group-hover:scale-110 duration-300">
+            <Award className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </div>
-          <span className="text-sm sm:text-lg font-bold text-[#1e3a8a]">التقييمات</span>
+          <span className="text-sm sm:text-lg font-black text-slate-700 group-hover:text-rose-500 transition-colors">التقييمات</span>
         </motion.button>
 
         {/* Students */}
@@ -99,12 +100,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 }}
           onClick={() => onNavigate('students')}
-          className="group bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 flex flex-col items-center justify-center gap-1 sm:gap-3 shadow-sm border border-slate-100 hover:shadow-md transition-all active:scale-95"
+          className="group bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95"
         >
-          <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md shadow-emerald-500/30 flex items-center justify-center mb-1 transition-all group-hover:shadow-lg group-hover:shadow-emerald-500/40">
-            <GraduationCap className="w-6 h-6 sm:w-8 sm:h-8 text-white group-hover:rotate-12 group-hover:scale-110 transition-transform duration-300" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-lg shadow-blue-400/30 flex items-center justify-center transition-all group-hover:shadow-blue-400/50 group-hover:scale-110 duration-300">
+            <GraduationCap className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </div>
-          <span className="text-sm sm:text-lg font-bold text-[#1e3a8a]">الطلاب</span>
+          <span className="text-sm sm:text-lg font-black text-slate-700 group-hover:text-blue-500 transition-colors">الطلاب</span>
         </motion.button>
 
         {/* Stats */}
@@ -113,12 +114,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.5 }}
           onClick={() => onNavigate('stats')}
-          className="group bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 flex flex-col items-center justify-center gap-1 sm:gap-3 shadow-sm border border-slate-100 hover:shadow-md transition-all active:scale-95"
+          className="group bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95"
         >
-          <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-md shadow-sky-500/30 flex items-center justify-center mb-1 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/40">
-            <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-white group-hover:-rotate-12 group-hover:scale-110 transition-transform duration-300" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-400 text-white shadow-lg shadow-emerald-400/30 flex items-center justify-center transition-all group-hover:shadow-emerald-400/50 group-hover:scale-110 duration-300">
+            <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </div>
-          <span className="text-sm sm:text-lg font-bold text-[#1e3a8a]">الإحصاء</span>
+          <span className="text-sm sm:text-lg font-black text-slate-700 group-hover:text-emerald-500 transition-colors">الإحصاء</span>
         </motion.button>
 
         {/* Search */}
@@ -127,12 +128,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.6 }}
           onClick={() => onNavigate('search')}
-          className="group bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 flex flex-col items-center justify-center gap-1 sm:gap-3 shadow-sm border border-slate-100 hover:shadow-md transition-all active:scale-95"
+          className="group bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95"
         >
-          <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-fuchsia-400 to-pink-500 text-white shadow-md shadow-fuchsia-500/30 flex items-center justify-center mb-1 transition-all group-hover:shadow-lg group-hover:shadow-fuchsia-500/40">
-            <Search className="w-6 h-6 sm:w-8 sm:h-8 text-white group-hover:-rotate-12 group-hover:scale-110 transition-transform duration-300" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-400 text-white shadow-lg shadow-violet-400/30 flex items-center justify-center transition-all group-hover:shadow-violet-400/50 group-hover:scale-110 duration-300">
+            <Search className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </div>
-          <span className="text-sm sm:text-lg font-bold text-[#1e3a8a]">البحث</span>
+          <span className="text-sm sm:text-lg font-black text-slate-700 group-hover:text-violet-500 transition-colors">البحث</span>
         </motion.button>
 
         {/* Admin Dashboard */}
@@ -141,14 +142,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.7 }}
           onClick={() => onNavigate('admin')}
-          className="group col-span-2 bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-row items-center justify-start sm:justify-center gap-3 sm:gap-5 shadow-md hover:shadow-lg transition-all active:scale-95 border border-slate-700"
+          className="group col-span-2 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-3xl sm:rounded-[2rem] p-5 sm:p-6 flex flex-row items-center justify-start sm:justify-center gap-4 sm:gap-6 shadow-xl shadow-indigo-500/20 hover:shadow-2xl hover:shadow-indigo-500/30 transition-all duration-300 active:scale-95 border border-indigo-400/30"
         >
-          <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-slate-800/80 flex items-center justify-center transition-colors shrink-0">
-            <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-400 group-hover:scale-110 transition-transform duration-300" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center transition-colors shrink-0 border border-white/20">
+            <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-white group-hover:scale-110 transition-transform duration-300" />
           </div>
           <div className="text-right">
             <span className="block text-base sm:text-2xl font-black text-white mb-0.5">الإدارة المدرسية</span>
-            <span className="block text-[10px] sm:text-sm text-slate-400 font-medium">دخول المدير، الوكيل، والمشرف برقم الهاتف</span>
+            <span className="block text-[10px] sm:text-sm text-indigo-200 font-medium">دخول المدير، الوكيل، والمشرف برقم الهاتف</span>
           </div>
         </motion.button>
       </div>
@@ -159,12 +160,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
           href="https://wa.me/201030302005" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-full shadow-md shadow-emerald-500/20 transition-transform hover:scale-105 active:scale-95"
+          className="flex items-center gap-2 bg-gradient-to-r from-emerald-400 to-teal-500 text-white px-6 py-3 rounded-full shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all hover:-translate-y-0.5 active:scale-95"
         >
           <MessageCircle className="w-5 h-5" />
           <span className="font-bold text-sm">الدعم الفني</span>
         </a>
-        <div className="text-sm font-black text-slate-400/80 tracking-wide">
+        <div className="text-sm font-black text-indigo-200/80 tracking-wide">
           إعداد وتصميم / علاء الوكيل
         </div>
       </div>

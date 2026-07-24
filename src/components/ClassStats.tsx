@@ -32,31 +32,41 @@ interface ClassStatsProps {
 }
 
 export const ClassStats: React.FC<ClassStatsProps> = ({ records, selectedTerm, teacher }) => {
+  const [localStorageKey, setLocalStorageKey] = React.useState(0);
+
+  // Re-read local storage on mount, tab activation, or roster updates
+  React.useEffect(() => {
+    const handleUpdate = () => setLocalStorageKey(prev => prev + 1);
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('roster_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('roster_updated', handleUpdate);
+    };
+  }, [records, selectedTerm]);
+
   const chartData = useMemo(() => {
     // Read local storage for students and attendance
     let students: Student[] = [];
-    let attendance: StudentAttendance[] = [];
+    let rawAttendance: StudentAttendance[] = [];
     try {
       students = JSON.parse(localStorage.getItem('school_assessments_students_roster_v1') || '[]');
-      attendance = JSON.parse(localStorage.getItem('school_assessments_attendance_v1') || '[]');
+      rawAttendance = JSON.parse(localStorage.getItem('school_assessments_attendance_v1') || '[]');
     } catch (e) {
       console.error(e);
     }
 
-    // Filter attendance and records by selectedTerm (optional, but good for context)
+    // Keep attendance only for existing students in the current roster
+    const validStudentIds = new Set(students.map(s => s.id));
+    const attendance = rawAttendance.filter(a => validStudentIds.has(a.student_id));
+
+    // Filter attendance and records by selectedTerm
     const termRecords = records.filter(r => r.term_id === selectedTerm);
     
-    // Determine unique classes
+    // Determine unique classes that currently exist (ONLY classes with registered students)
     const classSet = new Set<string>();
-    
-    // We can get classes from records, students, and attendance to be safe
-    termRecords.forEach(r => classSet.add(`${r.grade}/${r.class_num}`));
     students.forEach(s => classSet.add(`${s.grade}/${s.class_num}`));
-    attendance.forEach(a => {
-      if (a.month_id === selectedTerm) classSet.add(`${a.grade}/${a.class_num}`);
-    });
 
-    
     const monthlyData = MONTHS_DATA.filter(m => m.termId === selectedTerm).map(month => {
       const monthRecords = termRecords.filter(r => r.month_id === month.id);
       
@@ -65,9 +75,12 @@ export const ClassStats: React.FC<ClassStatsProps> = ({ records, selectedTerm, t
       const totalAttendance = monthAttendance.length;
       const attendanceRate = totalAttendance > 0 ? Math.round((presentCount / totalAttendance) * 100) : 0;
       
+      const evaluatedInMonth = new Set(monthAttendance.map(a => `${a.grade}_${a.class_num}_${a.assess_num}`)).size;
+      const assessmentsCount = Math.max(monthRecords.length, evaluatedInMonth);
+
       return {
         name: month.name.split(' ')[0],
-        assessmentsCount: monthRecords.length,
+        assessmentsCount,
         attendanceRate
       };
     });
@@ -78,10 +91,12 @@ export const ClassStats: React.FC<ClassStatsProps> = ({ records, selectedTerm, t
 
       // Total assessments for this class
       const classRecords = termRecords.filter(r => r.grade === grade && r.class_num === classNum);
-      const assessmentsCount = classRecords.length;
+      const classAttendance = attendance.filter(a => a.grade === grade && a.class_num === classNum && a.month_id === selectedTerm);
+      
+      const evaluatedAssessNums = new Set(classAttendance.map(a => a.assess_num)).size;
+      const assessmentsCount = Math.max(classRecords.length, evaluatedAssessNums);
 
       // Attendance rate for this class
-      const classAttendance = attendance.filter(a => a.grade === grade && a.class_num === classNum && a.month_id === selectedTerm);
       const totalAttendance = classAttendance.length;
       const presentCount = classAttendance.filter(a => a.status === 'present').length;
       const attendanceRate = totalAttendance > 0 ? Math.round((presentCount / totalAttendance) * 100) : 0;
@@ -96,7 +111,7 @@ export const ClassStats: React.FC<ClassStatsProps> = ({ records, selectedTerm, t
 
     // Sort by name roughly
     return { classData: data.sort((a, b) => a.sortKey.localeCompare(b.sortKey)), monthlyData };
-  }, [records, selectedTerm]);
+  }, [records, selectedTerm, localStorageKey]);
 
   if (chartData.classData.length === 0) {
     return (

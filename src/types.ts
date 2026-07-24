@@ -25,6 +25,7 @@ export interface StudentAttendance {
   status: AttendanceStatus;
   notes?: string;
   updated_at: string;
+  teacher_id?: string;
 }
 
 export interface MonthInfo {

@@ -19,6 +19,7 @@ import {
   Target,
   Flag,
   Book,
+  BookOpen,
   Award,
   Sparkles,
   Smile
@@ -32,19 +33,20 @@ interface ClassRosterManagerProps {
   selectedMonthId: string;
   teacherId: string;
   isFirebaseConnected?: boolean;
+  onDeleteRecordsForClass?: (grade: string, classNum: number) => void;
 }
 
 const ROSTER_STORAGE_KEY = 'school_assessments_students_roster_v1';
 const ATTENDANCE_STORAGE_KEY = 'school_assessments_attendance_v1';
 
-import { saveFirebaseAttendance, saveFirebaseStudent, deleteFirebaseStudent } from '../lib/firebase';
+import { saveFirebaseAttendance, saveFirebaseStudent, deleteFirebaseStudent, deleteFirebaseAttendance, deleteFirebaseAssessmentRecord } from '../lib/firebase';
 import { Cloud, CloudOff, Loader2, Download, Printer, Image } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 import { toPng } from 'html-to-image';
 
 
-export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selectedTerm, records, selectedMonthId, teacherId, isFirebaseConnected }) => {
+export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selectedTerm, records, selectedMonthId, teacherId, isFirebaseConnected, onDeleteRecordsForClass }) => {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
 
   // Search and Filter
@@ -169,6 +171,162 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   const [isListeningAdd, setIsListeningAdd] = useState(false);
   const [isListeningEdit, setIsListeningEdit] = useState(false);
 
+  // Clear All Assessments Checkbox & Warning Modal State
+  const [isClearAssessmentsChecked, setIsClearAssessmentsChecked] = useState(false);
+  const [showClearAssessmentsWarning, setShowClearAssessmentsWarning] = useState(false);
+
+  // Model Distribution States
+  const [isRandomDistribution, setIsRandomDistribution] = useState<boolean>(() => {
+    return localStorage.getItem('school_is_random_model_distribution') === 'true';
+  });
+  const [showModelsInTable, setShowModelsInTable] = useState<boolean>(() => {
+    const saved = localStorage.getItem('school_show_models_in_table');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('school_is_random_model_distribution', isRandomDistribution.toString());
+  }, [isRandomDistribution]);
+
+  useEffect(() => {
+    localStorage.setItem('school_show_models_in_table', showModelsInTable.toString());
+  }, [showModelsInTable]);
+
+  // Model calculation helper
+  const getStudentModel = (studentId: string, serialNumber: number, assessNum: number, isRandom: boolean) => {
+    if (!isRandom) {
+      if (serialNumber <= 20) return 'أ';
+      if (serialNumber <= 35) return 'ب';
+      return 'ج';
+    } else {
+      let hash = 0;
+      const key = `${studentId}_assess_${assessNum}`;
+      for (let i = 0; i < key.length; i++) {
+        hash = (hash << 5) - hash + key.charCodeAt(i);
+        hash |= 0;
+      }
+      const models = ['أ', 'ب', 'ج'];
+      return models[Math.abs(hash) % 3];
+    }
+  };
+
+  // Batch Attendance Actions State
+  const [batchTargetAssessNum, setBatchTargetAssessNum] = useState<number>(1);
+
+  const handleBatchAttendance = async (targetStatus: 'present' | 'absent') => {
+    if (!selectedGrade || !selectedClassNum || classStudents.length === 0) {
+      setErrorMessage('يرجى اختيار الصف والفصل والتأكد من وجود طلاب أولاً.');
+      return;
+    }
+
+    const targetNum = batchTargetAssessNum;
+    const updatedRecordsToSave: StudentAttendance[] = [];
+
+    setAttendance((prev) => {
+      let updated = [...prev];
+
+      classStudents.forEach((student) => {
+        const existingIdx = updated.findIndex(
+          (a) =>
+            a.student_id === student.id &&
+            a.assess_num === targetNum &&
+            a.month_id === selectedTerm
+        );
+
+        const recId = existingIdx >= 0 ? updated[existingIdx].id : crypto.randomUUID();
+        const record: StudentAttendance = {
+          id: recId,
+          student_id: student.id,
+          student_name: student.name,
+          grade: selectedGrade,
+          class_num: Number(selectedClassNum),
+          month_id: selectedTerm,
+          assess_num: targetNum,
+          status: targetStatus,
+          updated_at: new Date().toISOString(),
+          teacher_id: teacherId,
+        };
+
+        updatedRecordsToSave.push(record);
+
+        if (existingIdx >= 0) {
+          updated[existingIdx] = record;
+        } else {
+          updated.push(record);
+        }
+      });
+
+      return updated;
+    });
+
+    if (isFirebaseConnected && updatedRecordsToSave.length > 0) {
+      setSyncStatus('syncing');
+      try {
+        await Promise.all(updatedRecordsToSave.map((r) => saveFirebaseAttendance(r)));
+        setSyncStatus('idle');
+      } catch (e) {
+        console.error('Failed batch sync', e);
+        setSyncStatus('error');
+      }
+    }
+  };
+
+  const handleClearAssessmentsCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      if (!selectedGrade || !selectedClassNum) {
+        setErrorMessage('يرجى اختيار الصف والفصل أولاً قبل إلغاء التقييمات.');
+        return;
+      }
+      setShowClearAssessmentsWarning(true);
+    } else {
+      setIsClearAssessmentsChecked(false);
+    }
+  };
+
+  const confirmClearAllAssessments = async () => {
+    const classNum = Number(selectedClassNum);
+    const recordsToDelete = attendance.filter(
+      (a) => a.grade === selectedGrade && a.class_num === classNum
+    );
+    const assessmentDocsToDelete = records.filter(
+      (r) => r.grade === selectedGrade && r.class_num === classNum
+    );
+
+    setAttendance((prev) =>
+      prev.filter(
+        (a) =>
+          !(a.grade === selectedGrade && a.class_num === classNum)
+      )
+    );
+    setIsClearAssessmentsChecked(true);
+    setShowClearAssessmentsWarning(false);
+
+    if (onDeleteRecordsForClass) {
+      onDeleteRecordsForClass(selectedGrade, classNum);
+    }
+
+    if (isFirebaseConnected) {
+      setSyncStatus('syncing');
+      try {
+        await Promise.all([
+          ...recordsToDelete.map((r) => deleteFirebaseAttendance(r.id)),
+          ...assessmentDocsToDelete.map((doc) => deleteFirebaseAssessmentRecord(doc.id))
+        ]);
+        setSyncStatus('idle');
+      } catch (e) {
+        console.error('Failed to delete attendance from Firebase', e);
+        setSyncStatus('error');
+      }
+    }
+
+    window.dispatchEvent(new Event('roster_updated'));
+  };
+
+  const cancelClearAllAssessments = () => {
+    setIsClearAssessmentsChecked(false);
+    setShowClearAssessmentsWarning(false);
+  };
+
   const handleVoiceInput = (setter: (val: string) => void, setListening: (val: boolean) => void) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -198,6 +356,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   useEffect(() => {
     try {
       localStorage.setItem(ROSTER_STORAGE_KEY, JSON.stringify(students));
+      window.dispatchEvent(new Event('roster_updated'));
     } catch (e) {
       console.error(e);
     }
@@ -207,6 +366,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   useEffect(() => {
     try {
       localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(attendance));
+      window.dispatchEvent(new Event('roster_updated'));
     } catch (e) {
       console.error(e);
     }
@@ -463,11 +623,26 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
     }
   };
 
-  const confirmDeleteStudent = () => {
+  const confirmDeleteStudent = async () => {
     if (studentToDelete) {
-      setStudents((prev) => prev.filter((s) => s.id !== studentToDelete.id));
-      setAttendance((prev) => prev.filter((a) => a.student_id !== studentToDelete.id));
+      const studentId = studentToDelete.id;
+      const attendanceToDelete = attendance.filter((a) => a.student_id === studentId);
+
+      setStudents((prev) => prev.filter((s) => s.id !== studentId));
+      setAttendance((prev) => prev.filter((a) => a.student_id !== studentId));
       setStudentToDelete(null);
+
+      if (isFirebaseConnected) {
+        setSyncStatus('syncing');
+        try {
+          await deleteFirebaseStudent(studentId);
+          await Promise.all(attendanceToDelete.map((a) => deleteFirebaseAttendance(a.id)));
+          setSyncStatus('idle');
+        } catch (e) {
+          console.error('Failed to delete student from Firebase', e);
+          setSyncStatus('error');
+        }
+      }
     }
   };
 
@@ -555,7 +730,9 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   };
 
 
-  const renderAttendanceButton = (studentId: string, studentName: string, assessNum: number) => {
+  const renderAttendanceButton = (studentId: string, studentName: string, assessNum: number, serialNumber: number) => {
+    const assignedModel = getStudentModel(studentId, serialNumber, assessNum, isRandomDistribution);
+
     // Check if this assessment is a holiday for this class
     const isHoliday = records.some(r => 
       r.grade === selectedGrade && 
@@ -596,13 +773,29 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
     }
 
     return (
-      <button
-        onClick={() => toggleAttendance(studentId, studentName, assessNum)}
-        className={`${btnClass} group/btn`}
-        title={status === 'present' ? 'حاضر' : status === 'absent' ? 'غائب' : status === 'excused' ? 'بعذر' : 'غير مسجل'}
-      >
-        {icon}
-      </button>
+      <div className="flex items-center justify-center gap-1">
+        <button
+          onClick={() => toggleAttendance(studentId, studentName, assessNum)}
+          className={`${btnClass} group/btn`}
+          title={status === 'present' ? `حاضر (نموذج ${assignedModel})` : status === 'absent' ? `غائب (نموذج ${assignedModel})` : status === 'excused' ? `بعذر (نموذج ${assignedModel})` : `غير مسجل (نموذج ${assignedModel})`}
+        >
+          {icon}
+        </button>
+        {showModelsInTable && (
+          <span 
+            className={`text-[10px] font-black px-1 py-0.5 rounded border text-center min-w-[18px] leading-none shadow-2xs select-none ${
+              assignedModel === 'أ' 
+                ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                : assignedModel === 'ب' 
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                : 'bg-purple-50 text-purple-700 border-purple-200'
+            }`}
+            title={`نموذج الاختبار: ${assignedModel}`}
+          >
+            {assignedModel}
+          </span>
+        )}
+      </div>
     );
   };
 
@@ -743,34 +936,48 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
           </div>
           
           {/* Pin & Show All Checkboxes */}
-          <div className="flex items-center gap-4 col-span-2 md:col-span-2">
-            <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors shrink-0">
-              <input 
-                type="checkbox" 
-                checked={isPinned}
-                onChange={handlePinChange}
-                className="w-3.5 h-3.5 rounded text-[#0284c7] focus:ring-[#0284c7] border-slate-300"
-              />
-              تثبيت
-            </label>
-            
-            <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors shrink-0">
-              <input 
-                type="checkbox" 
-                checked={showAllAssessments}
-                onChange={(e) => setShowAllAssessments(e.target.checked)}
-                className="w-3.5 h-3.5 rounded text-[#0284c7] focus:ring-[#0284c7] border-slate-300"
-              />
-              كل التقييمات
-            </label>
+          <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 col-span-2 md:col-span-4 mt-1">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700 hover:text-slate-900 transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={isPinned}
+                  onChange={handlePinChange}
+                  className="w-4 h-4 rounded text-[#0284c7] focus:ring-[#0284c7] border-slate-300"
+                />
+                تثبيت
+              </label>
+              
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700 hover:text-slate-900 transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={showAllAssessments}
+                  onChange={(e) => setShowAllAssessments(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#0284c7] focus:ring-[#0284c7] border-slate-300"
+                />
+                كل التقييمات
+              </label>
+
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={isClearAssessmentsChecked}
+                  onChange={handleClearAssessmentsCheckbox}
+                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300"
+                />
+                إلغاء كل التقييمات
+              </label>
+            </div>
+
             {classStudents.length > 0 && (
               <button
                 onClick={() => {
                   setErrorMessage('هل أنت متأكد من حذف جميع طلاب هذا الفصل؟|DELETE_ALL');
                 }}
-                className="ml-auto bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-bold px-2 py-1 rounded-lg text-[10px] flex items-center gap-1 transition-colors"
+                className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold px-2.5 py-1 rounded-lg text-xs flex items-center gap-1 transition-colors ml-auto sm:ml-0"
               >
-                <Trash2 className="w-3 h-3" /> حذف الكل
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>حذف الفصل</span>
               </button>
             )}
           </div>
@@ -796,59 +1003,154 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
         </div>
       )}
 
+      {/* Batch Actions Bar (حضور كل الطلاب / غياب كل الطلاب) */}
+      {selectedGrade && selectedClassNum && classStudents.length > 0 && (
+        <div className="my-2 p-3 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl shadow-sm border border-slate-700/80 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-xs font-black text-amber-300">تسجيل تقييم جماعي:</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 bg-slate-800/90 px-2.5 py-1 rounded-xl border border-slate-700 text-xs">
+                <span className="font-bold text-slate-300 whitespace-nowrap">التقييم:</span>
+                <select
+                  value={batchTargetAssessNum}
+                  onChange={(e) => setBatchTargetAssessNum(Number(e.target.value))}
+                  className="bg-slate-900 text-white font-black text-xs rounded-lg px-2 py-1 border border-slate-600 focus:outline-none cursor-pointer"
+                >
+                  {assessmentsToDisplay.map((num) => (
+                    <option key={num} value={num}>تقييم {num}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 grow sm:grow-0">
+                <button
+                  onClick={() => handleBatchAttendance('present')}
+                  className="flex-1 sm:flex-initial bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-400/40"
+                  title={`تسجيل حضور جميع الطلاب لتقييم ${batchTargetAssessNum}`}
+                >
+                  <Check className="w-4 h-4" />
+                  <span>حضور كل الطلاب</span>
+                </button>
+
+                <button
+                  onClick={() => handleBatchAttendance('absent')}
+                  className="flex-1 sm:flex-initial bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-rose-400/40"
+                  title={`تسجيل غياب جميع الطلاب لتقييم ${batchTargetAssessNum}`}
+                >
+                  <X className="w-4 h-4" />
+                  <span>غياب كل الطلاب</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suggested Form Models Distribution Banner */}
+      {selectedGrade && selectedClassNum && classStudents.length > 0 && (
+        <div className="my-2.5 p-3 bg-emerald-50/90 border border-dashed border-emerald-300 rounded-2xl text-emerald-950 font-bold text-xs flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span className="text-emerald-900 font-black">توزيع النماذج المقترح:</span>
+            <span className="text-emerald-800 dir-rtl font-black bg-white/90 px-2.5 py-1 rounded-xl border border-emerald-200/90 shadow-2xs">
+              {isRandomDistribution 
+                ? 'توزيع عشوائي (أ ، ب ، ج)' 
+                : '1-20 (أ) ، 21-35 (ب) ، الآخر (ج)'}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-1.5 cursor-pointer text-emerald-900 hover:text-emerald-950 font-black select-none">
+              <input 
+                type="checkbox" 
+                checked={isRandomDistribution}
+                onChange={(e) => setIsRandomDistribution(e.target.checked)}
+                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-emerald-400 cursor-pointer"
+              />
+              <span>توزيع عشوائي</span>
+            </label>
+
+            <label className="flex items-center gap-1.5 cursor-pointer text-slate-800 hover:text-slate-950 font-black bg-white px-2.5 py-1 rounded-xl border border-emerald-200/90 shadow-2xs select-none">
+              <input 
+                type="checkbox" 
+                checked={showModelsInTable}
+                onChange={(e) => setShowModelsInTable(e.target.checked)}
+                className="w-4 h-4 rounded text-[#0284c7] focus:ring-[#0284c7] border-slate-300 cursor-pointer"
+              />
+              <span>إظهار النموذج للطلاب</span>
+            </label>
+          </div>
+        </div>
+      )}
+
       {/* Table Container - Compact for minimal scrolling */}
       <div id="roster-table-container" className="mt-2 rounded-lg overflow-hidden border border-slate-200 shadow-sm overflow-x-auto w-full max-h-[70vh] overflow-y-auto">
         <table className="w-full text-right border-separate border-spacing-0 whitespace-nowrap">
           <thead>
             <tr className="bg-[#1e3a8a] text-white text-sm font-bold shadow-sm">
-              <th className="p-3 min-w-[50px] max-w-[50px] w-[50px] text-center sticky right-0 bg-[#1e3a8a] z-20 border-b border-l border-slate-700 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">م</th>
-              <th className="p-2 min-w-[90px] max-w-[90px] w-[90px] sticky right-[50px] bg-[#1e3a8a] z-20 border-b border-l border-slate-700 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">الاسم</th>
+              <th className="py-2 px-1 text-xs min-w-[36px] max-w-[36px] w-[36px] text-center sticky right-0 bg-[#1e3a8a] z-20 border-b border-l border-slate-700 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">م</th>
+              <th className="p-2 min-w-[90px] max-w-[90px] w-[90px] sticky right-[36px] bg-[#1e3a8a] z-20 border-b border-l border-slate-700 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">الاسم</th>
               
               {assessmentsToDisplay.map(num => (
-                <th key={num} className="p-3 text-center w-8 border-b border-l border-slate-700 whitespace-nowrap px-1"><span className="text-slate-300 text-[10px] block mb-0.5">س</span>{num}</th>
+                <th key={num} className="py-2 px-1 text-center border-b border-l border-slate-700 whitespace-nowrap min-w-[38px]">
+                  <div className="flex flex-col items-center justify-center leading-none gap-1">
+                    <span className="[writing-mode:vertical-rl] text-[10px] text-slate-300 font-bold tracking-tight py-0.5">أسبوع</span>
+                    <span className="text-xs font-black text-white bg-slate-800/80 px-1 py-0.5 rounded border border-slate-600/80">{num}</span>
+                  </div>
+                </th>
               ))}
               <th className="p-3 text-center w-14 border-b border-r border-slate-700">تحكم</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white text-sm font-bold text-slate-800">
             {displayedStudents.length > 0 ? (
-              displayedStudents.map((student, idx) => (
-                <tr key={student.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="p-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 z-20 border-b border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] min-w-[50px] max-w-[50px] w-[50px]">{student.serialNumber}</td>
-                  <td className="p-2 text-xs sticky right-[50px] bg-white group-hover:bg-slate-50 z-20 border-b border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] min-w-[90px] max-w-[90px] w-[90px] truncate" title={student.name}>
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="truncate">{getShortName(student.name)}</span>
-                      {hasConsecutiveAbsences(student.id) && (
-                        <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" title="تجاوز 3 غيابات متتالية" />
-                      )}
-                    </div>
-                  </td>
+              displayedStudents.map((student, idx) => {
+                const isOdd = idx % 2 !== 0;
+                const rowBgClass = isOdd ? 'bg-sky-50/50 hover:bg-amber-50/80' : 'bg-white hover:bg-amber-50/80';
+                const stickyBgClass = isOdd ? 'bg-[#f0f9ff] group-hover:bg-[#fef3c7]' : 'bg-white group-hover:bg-[#fef3c7]';
 
-                  {assessmentsToDisplay.map(num => (
-                    <td key={num} className="p-1.5 border-b border-l border-slate-200">
-                      {renderAttendanceButton(student.id, student.name, num)}
+                return (
+                  <tr key={student.id} className={`${rowBgClass} transition-colors group`}>
+                    <td className={`py-1.5 px-1 text-xs text-center sticky right-0 ${stickyBgClass} z-20 border-b border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] min-w-[36px] max-w-[36px] w-[36px] font-black text-slate-700`}>{student.serialNumber}</td>
+                    <td className={`p-2 text-xs sticky right-[36px] ${stickyBgClass} z-20 border-b border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] min-w-[90px] max-w-[90px] w-[90px] truncate`} title={student.name}>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="truncate">{getShortName(student.name)}</span>
+                        {hasConsecutiveAbsences(student.id) && (
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" title="تجاوز 3 غيابات متتالية" />
+                        )}
+                      </div>
                     </td>
-                  ))}
-                  <td className="p-3 text-center border-b border-r border-slate-200">
-                    <div className="flex items-center justify-center gap-1">
-                      <button
-                        onClick={() => handleEditStudent(student)}
-                        className="text-slate-400 hover:text-teal-600 p-1.5 rounded-md hover:bg-teal-50 transition-colors inline-block"
-                        title="تعديل"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteStudent(student.id, student.name)}
-                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50 transition-colors inline-block"
-                        title="حذف"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+
+                    {assessmentsToDisplay.map(num => (
+                      <td key={num} className="p-1.5 border-b border-l border-slate-200">
+                        {renderAttendanceButton(student.id, student.name, num, student.serialNumber)}
+                      </td>
+                    ))}
+                    <td className="p-3 text-center border-b border-r border-slate-200">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleEditStudent(student)}
+                          className="text-slate-400 hover:text-teal-600 p-1.5 rounded-md hover:bg-teal-50 transition-colors inline-block"
+                          title="تعديل"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStudent(student.id, student.name)}
+                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50 transition-colors inline-block"
+                          title="حذف"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td colSpan={assessmentsToDisplay.length + 4} className="p-8 text-center text-slate-400">
@@ -1016,10 +1318,36 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
               {errorMessage.includes('|DELETE_ALL') ? (
                 <>
                   <button
-                    onClick={() => {
-                      setStudents(prev => prev.filter(s => !(s.grade === selectedGrade && s.class_num === selectedClassNum)));
-                      setAttendance(prev => prev.filter(a => !(a.grade === selectedGrade && a.class_num === selectedClassNum)));
+                    onClick={async () => {
+                      const classNum = selectedClassNum as number;
+                      const studentsToDelete = students.filter(s => s.grade === selectedGrade && s.class_num === classNum);
+                      const attendanceToDelete = attendance.filter(a => a.grade === selectedGrade && a.class_num === classNum);
+                      const assessmentDocsToDelete = records.filter(r => r.grade === selectedGrade && r.class_num === classNum);
+
+                      setStudents(prev => prev.filter(s => !(s.grade === selectedGrade && s.class_num === classNum)));
+                      setAttendance(prev => prev.filter(a => !(a.grade === selectedGrade && a.class_num === classNum)));
                       setErrorMessage(null);
+
+                      if (onDeleteRecordsForClass) {
+                        onDeleteRecordsForClass(selectedGrade, classNum);
+                      }
+
+                      if (isFirebaseConnected) {
+                        setSyncStatus('syncing');
+                        try {
+                          await Promise.all([
+                            ...studentsToDelete.map(s => deleteFirebaseStudent(s.id)),
+                            ...attendanceToDelete.map(a => deleteFirebaseAttendance(a.id)),
+                            ...assessmentDocsToDelete.map(doc => deleteFirebaseAssessmentRecord(doc.id))
+                          ]);
+                          setSyncStatus('idle');
+                        } catch (e) {
+                          console.error('Failed to delete class data from Firebase', e);
+                          setSyncStatus('error');
+                        }
+                      }
+
+                      window.dispatchEvent(new Event('roster_updated'));
                     }}
                     className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm"
                   >
@@ -1126,6 +1454,52 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
                 حفظ التغييرات
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear All Assessments Warning Modal */}
+      {showClearAssessmentsWarning && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 relative shadow-2xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200">
+            
+            <div className="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-black text-slate-900">
+                تحذير: إلغاء كل التقييمات
+              </h3>
+              <p className="text-sm font-bold text-slate-600 mt-2 leading-relaxed">
+                هل أنت متأكد من إلغاء ومسح جميع سجلات تقييمات الطلاب لهذا الفصل (الصف {selectedGrade} - فصل {selectedClassNum})؟
+              </p>
+              <div className="bg-rose-50 border border-rose-200/80 rounded-2xl p-3 mt-3 text-right text-xs font-bold text-rose-800 space-y-1">
+                <p>⚠️ تنبيه هام:</p>
+                <ul className="list-disc list-inside space-y-1 text-rose-700 font-medium">
+                  <li>سيتم مسح كافة درجات/حالات الحضور والغياب للـ 15 تقييماً المعتمدة.</li>
+                  <li>لا يمكن التراجع عن هذا الإجراء بعد التأكيد.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <button
+                onClick={confirmClearAllAssessments}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold py-3 px-4 rounded-xl text-sm transition-all shadow-md shadow-rose-600/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>نعم، إلغاء كافة التقييمات</span>
+              </button>
+
+              <button
+                onClick={cancelClearAllAssessments}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl text-sm transition-colors cursor-pointer"
+              >
+                إلغاء / تراجع
+              </button>
+            </div>
+
           </div>
         </div>
       )}

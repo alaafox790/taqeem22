@@ -19,6 +19,16 @@ export const StudentReportsScreen: React.FC<StudentReportsScreenProps> = ({ reco
   const [editPhoneValue, setEditPhoneValue] = useState('');
   const [triggerRender, setTriggerRender] = useState(0);
 
+  React.useEffect(() => {
+    const handleUpdate = () => setTriggerRender(prev => prev + 1);
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('roster_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('roster_updated', handleUpdate);
+    };
+  }, []);
+
   const [showColorSettings, setShowColorSettings] = useState(false);
   const [colors, setColors] = useState(() => {
     try {

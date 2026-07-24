@@ -149,50 +149,110 @@ export const AssessmentSearch: React.FC<AssessmentSearchProps> = ({ records, sel
             استخدم حقول البحث لعرض السجلات
           </div>
         ) : searchQuery || filteredStudents.length > 0 ? (
-          <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
             {filteredStudents.length === 0 ? (
               <div className="text-center py-8 text-slate-400 text-sm font-medium bg-slate-50 rounded-xl">
                 لا توجد نتائج مطابقة لبحثك
               </div>
             ) : (
-              filteredStudents.map(student => {
-                const studentRecords = attendance.filter(a => a.student_id === student.id)
-                  .sort((a, b) => a.assess_num - b.assess_num);
-                
-                return (
-                  <div key={student.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <User className="w-5 h-5 text-[#0284c7]" />
-                        <h3 className="font-bold text-slate-800">{student.name}</h3>
-                      </div>
-                      <span className="text-xs font-bold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200">
-                        الصف {student.grade} - فصل {student.class_num}
-                      </span>
-                    </div>
-                    
-                    {studentRecords.length === 0 ? (
-                      <p className="text-xs text-slate-400 text-center py-2">لا توجد سجلات تقييم لهذا الطالب</p>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                        {studentRecords.map(rec => (
-                          <div key={rec.id} className="bg-white border border-slate-200 rounded-lg p-2 text-center shadow-sm">
-                            <div className="text-xs font-black text-slate-700 mb-1">تقييم {rec.assess_num}</div>
-                            <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-block ${
-                              rec.status === 'present' ? 'bg-emerald-100 text-emerald-700' :
-                              rec.status === 'absent' ? 'bg-rose-100 text-rose-700' :
-                              'bg-amber-100 text-amber-700'
-                            }`}>
-                              {rec.status === 'present' ? 'حاضر' : rec.status === 'absent' ? 'غائب' : 'عذر'}
-                            </div>
-                            {rec.notes && <div className="text-[10px] text-slate-500 mt-1 truncate" title={rec.notes}>{rec.notes}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+              <>
+                {/* Legend Bar */}
+                <div className="flex flex-wrap items-center justify-center gap-3 py-2 px-4 bg-slate-100/80 rounded-xl text-xs font-bold text-slate-600 border border-slate-200/60 shadow-xs">
+                  <span className="text-slate-400 text-[11px]">دليل التقييمات الـ 15:</span>
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/40 inline-block"></span>
+                    <span>حاضر</span>
                   </div>
-                );
-              })
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full bg-rose-500 shadow-xs shadow-rose-500/40 inline-block"></span>
+                    <span>غائب</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full bg-amber-500 shadow-xs shadow-amber-500/40 inline-block"></span>
+                    <span>عذر</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full bg-slate-300 border border-slate-400/50 inline-block"></span>
+                    <span>سادة (لم يُقيّم)</span>
+                  </div>
+                </div>
+
+                {filteredStudents.map(student => {
+                  const studentRecords = attendance.filter(a => a.student_id === student.id);
+                  const recordByNum: Record<number, StudentAttendance> = {};
+                  studentRecords.forEach(r => {
+                    if (r.assess_num) recordByNum[r.assess_num] = r;
+                  });
+
+                  const presentCount = studentRecords.filter(r => r.status === 'present').length;
+                  const absentCount = studentRecords.filter(r => r.status === 'absent').length;
+
+                  return (
+                    <div key={student.id} className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200 shadow-xs hover:shadow-md transition-all space-y-3">
+                      {/* Student Info Header */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center font-bold shrink-0">
+                            <User className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-black text-slate-800 text-base leading-tight">{student.name}</h3>
+                            <div className="text-xs text-slate-500 font-bold mt-0.5">
+                              الصف {student.grade} - فصل {student.class_num}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Counts */}
+                        <div className="flex items-center gap-1.5 text-xs font-black">
+                          <span className="bg-emerald-100/80 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-200/80">
+                            حاضر: {presentCount}
+                          </span>
+                          <span className="bg-rose-100/80 text-rose-800 px-2.5 py-1 rounded-full border border-rose-200/80">
+                            غائب: {absentCount}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 15 Circles Container */}
+                      <div className="bg-white rounded-xl p-2.5 border border-slate-200/80 shadow-xs">
+                        <div className="grid grid-cols-5 sm:flex sm:items-center sm:justify-between gap-2 sm:gap-1 p-1 bg-slate-50/50 rounded-xl dir-rtl justify-items-center">
+                          {Array.from({ length: 15 }, (_, idx) => {
+                            const assessNum = idx + 1;
+                            const rec = recordByNum[assessNum];
+                            
+                            let circleStyle = "bg-slate-200 text-slate-700 border border-slate-300 hover:bg-slate-300"; // Plain/sada (not taken)
+                            let statusText = "لم يُقيم بعد";
+
+                            if (rec) {
+                              if (rec.status === 'present') {
+                                circleStyle = "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-xs shadow-emerald-500/40 ring-1 ring-emerald-300";
+                                statusText = "حاضر";
+                              } else if (rec.status === 'absent') {
+                                circleStyle = "bg-gradient-to-br from-rose-400 to-rose-600 text-white shadow-xs shadow-rose-500/40 ring-1 ring-rose-300";
+                                statusText = "غائب";
+                              } else if (rec.status === 'excused') {
+                                circleStyle = "bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-xs shadow-amber-500/40 ring-1 ring-amber-300";
+                                statusText = "بعذر";
+                              }
+                            }
+
+                            return (
+                              <div
+                                key={assessNum}
+                                title={`تقييم ${assessNum}: ${statusText}${rec?.notes ? ` (${rec.notes})` : ''}`}
+                                className={`w-8 h-8 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs sm:text-[11px] md:text-xs font-black shrink-0 transition-transform hover:scale-110 cursor-pointer select-none ${circleStyle}`}
+                              >
+                                {assessNum}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
             )}
           </div>
         ) : classRecords.length > 0 ? (
