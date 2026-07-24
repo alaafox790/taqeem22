@@ -98,7 +98,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8 dir-rtl font-['Tajawal',sans-serif] select-none">
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-emerald-50/50 flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8 dir-rtl font-['Tajawal',sans-serif] select-none">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
         {/* Top App Icon Box */}
         <div className="mx-auto w-16 h-16 bg-[#00a8ff] rounded-2xl flex items-center justify-center shadow-lg shadow-sky-500/25 mb-3 text-white">
@@ -220,7 +220,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                       }}
                       className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
                         selectedRole === 'principal'
-                          ? 'bg-slate-900 text-amber-400 border-slate-900 shadow-md scale-[1.02]'
+                          ? 'bg-amber-500 text-white border-amber-500 shadow-md scale-[1.02]'
                           : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -236,7 +236,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                       }}
                       className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
                         selectedRole === 'deputy'
-                          ? 'bg-slate-900 text-sky-400 border-slate-900 shadow-md scale-[1.02]'
+                          ? 'bg-sky-500 text-white border-sky-500 shadow-md scale-[1.02]'
                           : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -252,7 +252,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                       }}
                       className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
                         selectedRole === 'supervisor'
-                          ? 'bg-slate-900 text-emerald-400 border-slate-900 shadow-md scale-[1.02]'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md scale-[1.02]'
                           : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                       }`}
                     >

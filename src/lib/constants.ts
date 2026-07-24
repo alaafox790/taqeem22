@@ -1,10 +1,17 @@
-import { MonthInfo, TermId } from '../types';
+import { MonthInfo, TermId, TeacherProfile } from '../types';
 
-export const DEFAULT_TEACHER: { id: string; name: string; subject: string; school: string } = {
+export const STAGE_OPTIONS = [
+  'المرحلة الإعدادية',
+  'المرحلة الابتدائية',
+  'المرحلة الثانوية',
+] as const;
+
+export const DEFAULT_TEACHER: TeacherProfile = {
   id: 'T-1001',
   name: 'معلم المادة (اضغط للتعديل)',
   subject: 'الرياضيات',
-  school: 'المدرسة الابتدائية',
+  school: 'المدرسة الإعدادية',
+  educationalStage: 'المرحلة الإعدادية',
 };
 
 export const DEFAULT_ACADEMIC_YEAR = '2026/2027';

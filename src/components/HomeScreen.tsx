@@ -82,13 +82,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
             تقييماتي
           </h1>
 
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <span className="px-3.5 py-1 rounded-full bg-gradient-to-r from-sky-600 via-emerald-600 to-indigo-600 text-white text-xs font-black shadow-sm tracking-wide">
+              {teacher.educationalStage || 'المرحلة الإعدادية'}
+            </span>
+          </div>
+
           <motion.p 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="text-xs sm:text-sm font-extrabold text-amber-700/80 tracking-widest pt-1.5 border-t border-amber-200/40 mt-1.5 w-full text-center"
+            className="text-xs sm:text-sm font-extrabold text-amber-700/80 tracking-widest pt-1.5 border-t border-amber-200/40 mt-2 w-full text-center"
           >
-            مدمرة حياتي
+            منصة التقييمات المدرسية الشاملة
           </motion.p>
         </motion.div>
       </div>

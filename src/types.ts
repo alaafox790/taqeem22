@@ -48,6 +48,7 @@ export interface TeacherProfile {
   name: string;
   subject: string;
   school: string;
+  educationalStage?: string;
   phone?: string;
   supervisorCode?: string;
   supervisorPhone?: string;

@@ -201,8 +201,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="text-xs font-bold text-slate-700 max-w-[130px] truncate">
                   {teacher.name}
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium truncate max-w-[130px]">
-                  {teacher.subject} - {teacher.school}
+                <div className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">
+                  {teacher.subject} • {teacher.educationalStage || 'المرحلة الإعدادية'}
                 </div>
               </div>
               <Settings className="w-4 h-4 text-slate-400 mr-0.5" />

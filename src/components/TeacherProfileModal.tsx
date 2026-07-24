@@ -22,6 +22,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   const [id, setId] = useState(teacher.id);
   const [subject, setSubject] = useState(teacher.subject);
   const [school, setSchool] = useState(teacher.school);
+  const [educationalStage, setEducationalStage] = useState(teacher.educationalStage || 'المرحلة الإعدادية');
   const [subjectIcon, setSubjectIcon] = useState(teacher.subjectIcon || "Book");
   const [supervisorPhone, setSupervisorPhone] = useState(teacher.supervisorPhone || '');
   const [principalPhone, setPrincipalPhone] = useState(teacher.principalPhone || '');
@@ -37,6 +38,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
       setId(teacher.id);
       setSubject(teacher.subject);
       setSchool(teacher.school);
+      setEducationalStage(teacher.educationalStage || 'المرحلة الإعدادية');
       setSubjectIcon(teacher.subjectIcon || 'Book');
       setSupervisorPhone(teacher.supervisorPhone || '');
       setPrincipalPhone(teacher.principalPhone || '');
@@ -164,6 +166,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
       name: name.trim() || 'المعلم الفاضل',
       subject: subject.trim() || 'العامة',
       school: school.trim() || 'المدرسة',
+      educationalStage: educationalStage,
       supervisorPhone: supervisorPhone.trim(),
       principalPhone: principalPhone.trim(),
       deputyPhone: deputyPhone.trim(),
@@ -441,8 +444,21 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                   value={school}
                   onChange={(e) => setSchool(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
-                  placeholder="مثال: مدرسة الأمل النموذجية"
+                  placeholder="مثال: مدرسة الأمل الإعدادية"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">المرحلة التعليمية</label>
+                <select
+                  value={educationalStage}
+                  onChange={(e) => setEducationalStage(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-bold text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
+                >
+                  <option value="المرحلة الإعدادية">المرحلة الإعدادية</option>
+                  <option value="المرحلة الابتدائية">المرحلة الابتدائية</option>
+                  <option value="المرحلة الثانوية">المرحلة الثانوية</option>
+                </select>
               </div>
               
               <div className="col-span-1 sm:col-span-2">
