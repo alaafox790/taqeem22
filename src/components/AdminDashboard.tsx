@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Shield, Lock, Users, LogOut, ChevronLeft, Search, Building2, BookOpen, Clock, Activity, FileText, BarChart3, Phone, ChevronRight, Book, AlertTriangle, Calculator, Globe, FlaskConical, Languages, Music, Palette, PenTool, Dna, Code } from 'lucide-react';
+import { Shield, Lock, Users, LogOut, ChevronLeft, Search, Building2, BookOpen, Clock, Activity, FileText, BarChart3, Phone, ChevronRight, Book, AlertTriangle, Calculator, Globe, FlaskConical, Languages, Music, Palette, PenTool, Dna, Code, KeyRound } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Line } from 'recharts';
 import { fetchAllFirebaseTeachers, fetchFirebaseStudents, fetchFirebaseAttendance, fetchFirebaseRecords } from '../lib/firebase';
 import { TeacherProfile } from '../types';
@@ -42,6 +42,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
   const [adminRole, setAdminRole] = useState<'principal' | 'deputy' | 'supervisor' | null>(
     managementData?.role || null
   );
+  
+  // Login form states inside AdminDashboard
+  const [loginRole, setLoginRole] = useState<'principal' | 'deputy' | 'supervisor'>('principal');
+  const [adminPin, setAdminPin] = useState('');
+  const [loginSubject, setLoginSubject] = useState('العلوم');
+  const [loginError, setLoginError] = useState('');
+
   const [globalTeachers, setGlobalTeachers] = useState<TeacherProfile[]>([]);
   const [activeMainTab, setActiveMainTab] = useState<'teachers' | 'tracking'>('teachers');
   const [trackingRecords, setTrackingRecords] = useState<any[]>([]);
@@ -89,7 +96,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
       const fetchAllRecords = async () => {
         setLoadingTracking(true);
         try {
-          const promises = allTeachers.map(t => fetchFirebaseRecords(t.id));
+          const promises = allTeachers.map(t => fetchFirebaseRecords(t.id, t.phone));
           const results = await Promise.all(promises);
           // Combine all records
           const combined = results.flat();
@@ -108,45 +115,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminPhone.trim()) return;
-    
+    setLoginError('');
+
+    const trimmedPhone = adminPhone.trim();
+    if (!trimmedPhone || trimmedPhone.length < 8) {
+      setLoginError('يرجى إدخال رقم هاتف صحيح (8 أرقام على الأقل)');
+      return;
+    }
+
+    if (!adminPin || adminPin.trim().length !== 4) {
+      setLoginError('يرجى إدخال كود PIN الإداري المكون من 4 أرقام');
+      return;
+    }
+
     setLoading(true);
     try {
       const teachers = await fetchAllFirebaseTeachers();
       setGlobalTeachers(teachers);
-      
-      let isPrincipal = false;
-      let isDeputy = false;
-      let isSupervisor = false;
-      
-      const filteredTeachers = teachers.filter(t => {
-        if (t.principalPhone === adminPhone) {
-          isPrincipal = true;
-          return true;
-        }
-        if (t.deputyPhone === adminPhone) {
-          isDeputy = true;
-          return true;
-        }
-        if (t.supervisorPhone === adminPhone) {
-          isSupervisor = true;
-          return true;
-        }
-        return false;
-      });
+
+      let filteredTeachers: TeacherProfile[] = [];
+
+      if (loginRole === 'principal') {
+        filteredTeachers = teachers.filter(t => t.principalPhone === trimmedPhone);
+      } else if (loginRole === 'deputy') {
+        filteredTeachers = teachers.filter(t => t.deputyPhone === trimmedPhone);
+      } else if (loginRole === 'supervisor') {
+        filteredTeachers = teachers.filter(t => t.supervisorPhone === trimmedPhone);
+      }
 
       if (filteredTeachers.length > 0) {
-        if (isPrincipal) setAdminRole('principal');
-        else if (isDeputy) setAdminRole('deputy');
-        else setAdminRole('supervisor');
-        
+        setAdminRole(loginRole);
         setAllTeachers(filteredTeachers);
+        if (loginRole === 'supervisor') {
+          setSelectedSubject(loginSubject);
+        } else {
+          setSelectedSubject(null);
+        }
         setIsAuthenticated(true);
       } else {
-        alert('رقم الهاتف غير مسجل لدى أي معلم كمدير أو وكيل أو مشرف.');
+        const roleLabel = loginRole === 'principal' ? 'مدير المدرسة' : loginRole === 'deputy' ? 'وكيل المدرسة' : 'مشرف المادة';
+        setLoginError(`رقم الهاتف (${trimmedPhone}) غير مسجل كـ (${roleLabel}) لدى أي معلم. يرجى التأكد من قيام المعلمين بطلب وتسجيل رقمك في ملفاتهم.`);
       }
     } catch (err) {
       console.error(err);
+      setLoginError('حدث خطأ في الاتصال بقاعدة البيانات. يرجى المحاولة لاحقاً.');
     } finally {
       setLoading(false);
     }
@@ -157,9 +169,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
     setLoadingDetails(true);
     try {
       const [students, records, attendance] = await Promise.all([
-        fetchFirebaseStudents(teacher.id),
-        fetchFirebaseRecords(teacher.id),
-        fetchFirebaseAttendance(teacher.id)
+        fetchFirebaseStudents(teacher.id, teacher.phone),
+        fetchFirebaseRecords(teacher.id, teacher.phone),
+        fetchFirebaseAttendance(teacher.id, teacher.phone)
       ]);
       setTeacherStudents(students);
       setTeacherRecords(records);
@@ -189,29 +201,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
       if (currentMonth === 5) expectedAssessments = 12;
       if (currentMonth === 6) expectedAssessments = 15;
     } else {
-      expectedAssessments = 15; // Summer break
+      expectedAssessments = 15; // Current month / summer
     }
 
-    const currentTerm = [9, 10, 11, 12, 1].includes(currentMonth) ? 'term1' : 'term2';
-    
-    // Also consider max recorded in case the teacher is ahead or catching up on previous term
-    const termRecords = teacherRecords.filter(r => r.term_id === currentTerm);
-    const maxRecorded = termRecords.length > 0 ? Math.max(...termRecords.map(r => r.assess_num)) : 0;
+    const maxRecorded = teacherRecords.length > 0 ? Math.max(...teacherRecords.map(r => r.assess_num || 0)) : 0;
     expectedAssessments = Math.max(expectedAssessments, maxRecorded);
 
     const classSet = new Set<string>(teacherStudents.map(s => `${s.grade}-${s.class_num}`));
-    teacherRecords.forEach(r => classSet.add(`${r.grade}-${r.class_num}`));
+    teacherRecords.forEach(r => {
+      if (r.grade && r.class_num) {
+        classSet.add(`${r.grade}-${r.class_num}`);
+      }
+    });
 
     return Array.from(classSet).map(classId => {
       const [grade, classNum] = classId.split('-');
       
       const studentsInClass = teacherStudents.filter(s => `${s.grade}-${s.class_num}` === classId);
       
-      // Filter records for this class in the current term to count completed
-      const recordsInClassTerm = teacherRecords.filter(r => `${r.grade}-${r.class_num}` === classId && r.term_id === currentTerm);
+      const recordsInClass = teacherRecords.filter(r => `${r.grade}-${r.class_num}` === classId);
       
-      // Unique assess_num to avoid duplicate counting if any
-      const uniqueAssessments = new Set(recordsInClassTerm.map(r => r.assess_num));
+      const uniqueAssessments = new Set(recordsInClass.map(r => r.assess_num));
       const completedAssessmentsCount = uniqueAssessments.size;
       
       const missedCount = Math.max(0, expectedAssessments - completedAssessmentsCount);
@@ -222,9 +232,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
       const attendanceRate = totalAttendance > 0 ? Math.round((presentCount / totalAttendance) * 100) : 0;
 
       return {
-        name: `الصف ${grade} - ${classNum}`,
+        name: `الصف ${grade} - فصل ${classNum}`,
         studentsCount: studentsInClass.length,
-        assessmentsCount: completedAssessmentsCount, // for charts and cards
+        assessmentsCount: completedAssessmentsCount,
         expectedAssessments,
         missedCount,
         attendanceRate,
@@ -262,10 +272,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
     } else {
       expectedAssessments = 15; 
     }
-    const currentTerm = [9, 10, 11, 12, 1].includes(currentMonth) ? 'term1' : 'term2';
 
     const teachersWithLate = allTeachers.map(teacher => {
-      const tRecords = trackingRecords.filter(r => r.teacher_id === teacher.id && r.term_id === currentTerm);
+      const tRecords = trackingRecords.filter(r => r.teacher_id === teacher.id || (teacher.phone && r.teacher_id === teacher.phone));
       const classSet = new Set<string>();
       tRecords.forEach(r => classSet.add(`${r.grade}-${r.class_num}`));
       
@@ -288,6 +297,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
     return { unlinkedTeachers, teachersWithLate };
   }, [globalTeachers, allTeachers, trackingRecords, adminRole]);
 
+  // Get teachers to display
+  let displayedTeachers = allTeachers;
+  if (selectedSubject) {
+    if (selectedSubject === 'أخرى') {
+      displayedTeachers = allTeachers.filter(t => !SUBJECTS.slice(0, 5).includes(t.subject));
+    } else {
+      displayedTeachers = allTeachers.filter(t => t.subject === selectedSubject);
+    }
+  }
+
+  // Auto-select the first teacher if no teacher is currently selected or selected teacher is not in displayedTeachers
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const isTeacherListView = (adminRole === 'supervisor') || ((adminRole === 'principal' || adminRole === 'deputy') && Boolean(selectedSubject));
+
+    if (isTeacherListView && displayedTeachers.length > 0) {
+      const isValid = selectedTeacher && displayedTeachers.some(t => t.id === selectedTeacher.id);
+      if (!isValid) {
+        handleViewTeacher(displayedTeachers[0]);
+      }
+    } else if (isTeacherListView && displayedTeachers.length === 0) {
+      setSelectedTeacher(null);
+      setTeacherStudents([]);
+      setTeacherRecords([]);
+      setTeacherAttendance([]);
+    } else if (!selectedSubject && (adminRole === 'principal' || adminRole === 'deputy')) {
+      setSelectedTeacher(null);
+    }
+  }, [isAuthenticated, adminRole, selectedSubject, displayedTeachers]);
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
@@ -296,16 +336,77 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
             <Shield className="w-10 h-10" />
           </div>
           <h2 className="text-2xl font-black text-slate-800 mb-2">بوابة الإدارة المدرسية</h2>
-          <p className="text-sm text-slate-500 mb-8 font-medium">سجل الدخول برقم هاتف المدير، الوكيل، أو المشرف</p>
+          <p className="text-sm text-slate-500 mb-6 font-medium">اختر الصلاحية وأدخل رقم الهاتف وكود PIN</p>
           
+          {loginError && (
+            <div className="mb-6 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl text-right animate-in fade-in">
+              {loginError}
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4 text-right">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2">رقم الهاتف</label>
+              <label className="block text-xs font-bold text-slate-700 mb-2">الصفة القيادية</label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setLoginRole('principal'); setLoginError(''); }}
+                  className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                    loginRole === 'principal' 
+                      ? 'bg-slate-900 text-white border-slate-900' 
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  مدير المدرسة
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setLoginRole('deputy'); setLoginError(''); }}
+                  className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                    loginRole === 'deputy' 
+                      ? 'bg-slate-900 text-white border-slate-900' 
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  وكيل المدرسة
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setLoginRole('supervisor'); setLoginError(''); }}
+                  className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                    loginRole === 'supervisor' 
+                      ? 'bg-slate-900 text-white border-slate-900' 
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  مشرف المادة
+                </button>
+              </div>
+            </div>
+
+            {loginRole === 'supervisor' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">تخصص المادة</label>
+                <select
+                  value={loginSubject}
+                  onChange={(e) => setLoginSubject(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-right text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {SUBJECTS.slice(0, 5).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2">رقم الهاتف المسجل</label>
               <div className="relative">
                 <input
                   type="tel"
+                  required
                   value={adminPhone}
-                  onChange={(e) => setAdminPhone(e.target.value)}
+                  onChange={(e) => { setAdminPhone(e.target.value); setLoginError(''); }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-left font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                   placeholder="05xxxxxxxxx"
                   dir="ltr"
@@ -313,11 +414,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
                 <Phone className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2">كود الدخول الإداري (PIN - 4 أرقام)</label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  maxLength={4}
+                  value={adminPin}
+                  onChange={(e) => { setAdminPin(e.target.value); setLoginError(''); }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center tracking-widest font-mono text-lg font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                  placeholder="••••"
+                  dir="ltr"
+                />
+                <KeyRound className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
             
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-slate-900 text-white rounded-xl py-3 font-bold hover:bg-slate-800 transition-colors shadow-md disabled:opacity-50"
+              className="w-full bg-slate-900 text-white rounded-xl py-3 font-bold hover:bg-slate-800 transition-colors shadow-md disabled:opacity-50 mt-2"
             >
               {loading ? 'جاري التحقق...' : 'تسجيل الدخول'}
             </button>
@@ -325,18 +443,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
         </div>
       </div>
     );
-  }
-
-
-
-  // Get teachers to display
-  let displayedTeachers = allTeachers;
-  if ((adminRole === 'principal' || adminRole === 'deputy') && selectedSubject) {
-    if (selectedSubject === 'أخرى') {
-      displayedTeachers = allTeachers.filter(t => !SUBJECTS.slice(0, 5).includes(t.subject));
-    } else {
-      displayedTeachers = allTeachers.filter(t => t.subject === selectedSubject);
-    }
   }
 
   return (
@@ -442,23 +548,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
               {displayedTeachers.length === 0 ? (
                 <div className="text-center py-10 text-slate-400 font-medium">لا يوجد معلمين متاحين</div>
               ) : (
-                displayedTeachers.map(teacher => (
-                  <button
-                    key={teacher.id}
-                    onClick={() => handleViewTeacher(teacher)}
-                    className={`w-full text-right p-4 rounded-xl border transition-all ${
-                      selectedTeacher?.id === teacher.id
-                        ? 'bg-emerald-50 border-emerald-200 shadow-sm'
-                        : 'bg-white border-slate-100 hover:border-slate-300 hover:shadow-sm'
-                    }`}
-                  >
-                    <h4 className="font-bold text-slate-800 text-sm mb-1">{teacher.name}</h4>
-                    <div className="flex items-center gap-3 text-xs text-slate-500">
-                      <span className="flex items-center gap-1">{getSubjectIcon(teacher.subjectIcon)} <span className="font-medium">{teacher.subject}</span></span>
-                      <span className="flex items-center gap-1"><Building2 className="w-3 h-3" /> {teacher.school}</span>
-                    </div>
-                  </button>
-                ))
+                displayedTeachers.map(teacher => {
+                  const teacherRecs = trackingRecords.filter(r => r.teacher_id === teacher.id || (teacher.phone && r.teacher_id === teacher.phone));
+                  const completedCount = new Set(teacherRecs.map(r => `${r.grade}-${r.class_num}-${r.assess_num}`)).size;
+                  
+                  return (
+                    <button
+                      key={teacher.id}
+                      onClick={() => handleViewTeacher(teacher)}
+                      className={`w-full text-right p-3 rounded-xl border transition-all ${
+                        selectedTeacher?.id === teacher.id
+                          ? 'bg-emerald-50 border-emerald-200 shadow-sm'
+                          : 'bg-white border-slate-100 hover:border-slate-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <h4 className="font-bold text-slate-800 text-sm">{teacher.name}</h4>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          {completedCount} تقييم
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-slate-500">
+                        <span className="flex items-center gap-1">{getSubjectIcon(teacher.subjectIcon)} <span className="font-medium">{teacher.subject}</span></span>
+                        <span className="flex items-center gap-1"><Building2 className="w-3 h-3" /> {teacher.school}</span>
+                      </div>
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
@@ -475,29 +591,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
               </div>
             ) : loadingDetails ? (
               <div className="flex-1 flex items-center justify-center text-emerald-600 font-bold animate-pulse">
-                جاري تحميل بيانات المعلم...
+                جاري تحميل بيانات المعلم ورصد التقييمات...
               </div>
             ) : (
               <>
-                <div className="p-6 border-b border-slate-100 bg-slate-50 flex flex-wrap gap-4 items-center justify-between">
+                <div className="p-5 border-b border-slate-100 bg-slate-50 flex flex-wrap gap-4 items-center justify-between">
                   <div>
                     <h3 className="text-xl font-black text-slate-800 mb-1">{selectedTeacher.name}</h3>
-                    <div className="flex gap-3 text-sm text-slate-500 font-medium">
-                      <span className="flex items-center gap-1"><BookOpen className="w-4 h-4" /> مادة {selectedTeacher.subject}</span>
-                      <span className="flex items-center gap-1"><Building2 className="w-4 h-4" /> {selectedTeacher.school}</span>
+                    <div className="flex gap-3 text-xs text-slate-500 font-medium">
+                      <span className="flex items-center gap-1"><BookOpen className="w-4 h-4 text-emerald-600" /> مادة {selectedTeacher.subject}</span>
+                      <span className="flex items-center gap-1"><Building2 className="w-4 h-4 text-slate-400" /> {selectedTeacher.school}</span>
                     </div>
                   </div>
                   
-                  <div className="flex gap-4">
-                    <div className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-center shadow-sm">
-                      <div className="text-xs text-slate-500 font-bold mb-1">عدد الطلاب</div>
-                      <div className="text-xl font-black text-teal-600">{teacherStudents.length}</div>
-                    </div>
-                    <div className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-center shadow-sm">
-                      <div className="text-xs text-slate-500 font-bold mb-1">عدد التقييمات</div>
-                      <div className="text-xl font-black text-[#0284c7]">{teacherRecords.length}</div>
-                    </div>
-                  </div>
+                  {(() => {
+                    const totalMissed = classChartData.reduce((acc, c) => acc + c.missedCount, 0);
+                    const lastRec = teacherRecords.length > 0
+                      ? [...teacherRecords].sort((a, b) => new Date(b.created_at || b.assess_date || 0).getTime() - new Date(a.created_at || a.assess_date || 0).getTime())[0]
+                      : null;
+                    const lastDateText = lastRec ? (lastRec.assess_date || (lastRec.created_at ? new Date(lastRec.created_at).toLocaleDateString('ar-EG') : '—')) : 'لا يوجد';
+
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto">
+                        <div className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-center shadow-sm">
+                          <div className="text-[10px] text-slate-500 font-bold mb-0.5">عدد الطلاب</div>
+                          <div className="text-base font-black text-teal-600">{teacherStudents.length}</div>
+                        </div>
+                        <div className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-center shadow-sm">
+                          <div className="text-[10px] text-slate-500 font-bold mb-0.5">عدد التقييمات</div>
+                          <div className="text-base font-black text-[#0284c7]">{teacherRecords.length}</div>
+                        </div>
+                        <div className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-center shadow-sm">
+                          <div className="text-[10px] text-slate-500 font-bold mb-0.5">حالة التقييم</div>
+                          <div className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full inline-block ${totalMissed > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {totalMissed > 0 ? `متأخر (${totalMissed})` : 'منتظم'}
+                          </div>
+                        </div>
+                        <div className="bg-white border border-slate-200 px-3 py-2 rounded-xl text-center shadow-sm">
+                          <div className="text-[10px] text-slate-500 font-bold mb-0.5">آخر تقييم</div>
+                          <div className="text-[11px] font-bold text-slate-800">{lastDateText}</div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -600,33 +736,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, manage
 
                   {/* Section: Recent Records */}
                   <div>
-                    <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-slate-400" />
-                      أحدث سجلات التقييم
+                    <h4 className="font-bold text-slate-800 mb-3 flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-emerald-600" />
+                        سجل التقييمات المرصودة وتواريخها ({teacherRecords.length})
+                      </span>
                     </h4>
                     <div className="space-y-3">
                       {teacherRecords.length > 0 ? (
-                        [...teacherRecords].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).slice(0, 10).map((record, idx) => (
-                          <div key={record.id || idx} className="flex justify-between items-center p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-                            <div>
-                              <div className="font-bold text-slate-700 text-sm mb-1">
-                                الصف {record.grade} - فصل {record.class_num}
+                        [...teacherRecords]
+                          .sort((a, b) => new Date(b.created_at || b.assess_date || 0).getTime() - new Date(a.created_at || a.assess_date || 0).getTime())
+                          .map((record, idx) => (
+                            <div key={record.id || idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-white border border-slate-200 shadow-sm gap-2">
+                              <div>
+                                <div className="font-bold text-slate-800 text-sm mb-1 flex items-center gap-2">
+                                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-xs font-black">
+                                    التقييم {record.assess_num}
+                                  </span>
+                                  <span>الصف {record.grade} - فصل {record.class_num}</span>
+                                </div>
+                                <div className="text-xs text-slate-500 font-medium flex flex-wrap gap-2 items-center">
+                                  <span>تاريخ التقييم: <strong className="text-slate-700">{record.assess_date || (record.created_at ? new Date(record.created_at).toLocaleDateString('ar-EG') : 'غير محدد')}</strong></span>
+                                  {record.notes && <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">{record.notes}</span>}
+                                </div>
                               </div>
-                              <div className="text-xs text-slate-500">
-                                تقييم {record.assess_num}
-                                {record.notes && ` • ${record.notes}`}
+                              <div className="text-right sm:text-left shrink-0">
+                                <div className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg inline-block">
+                                  أسبوع {record.week_number || record.month_id || '—'} • فترة {record.timing_period === 'start' ? 'بداية الحصة' : record.timing_period === 'end' ? 'نهاية الحصة' : 'منتصف الحصة'}
+                                </div>
                               </div>
                             </div>
-                            <div className="text-left">
-                              <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md inline-block mb-1">
-                                أسبوع {record.week_number} - فترة {record.timing_period === 'start' ? 'بداية' : 'نهاية'} الحصة
-                              </div>
-                              <div className="text-[10px] text-slate-400">{record.created_at ? new Date(record.created_at).toLocaleDateString('ar-EG') : record.assess_date}</div>
-                            </div>
-                          </div>
-                        ))
+                          ))
                       ) : (
-                        <div className="text-center text-sm text-slate-400 py-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="text-center text-sm text-slate-400 py-6 bg-slate-50 rounded-xl border border-slate-100">
                           لم يقم المعلم برصد أي تقييمات بعد
                         </div>
                       )}

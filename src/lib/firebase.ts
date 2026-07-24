@@ -88,9 +88,9 @@ export async function fetchRawFirebaseRecords(teacherId: string): Promise<Assess
   }
 }
 
-export async function fetchFirebaseRecords(teacherId: string): Promise<AssessmentRecord[]> {
+export async function fetchFirebaseRecords(teacherId: string, teacherPhone?: string): Promise<AssessmentRecord[]> {
   const localList = getLocalRecords();
-  const localTeacherRecords = localList.filter(r => r.teacher_id === teacherId);
+  const localTeacherRecords = localList.filter(r => r.teacher_id === teacherId || (teacherPhone && r.teacher_id === teacherPhone));
 
   try {
     const q = query(collection(db, 'assessments'), where('teacher_id', '==', teacherId));
@@ -99,6 +99,19 @@ export async function fetchFirebaseRecords(teacherId: string): Promise<Assessmen
     querySnapshot.forEach((docSnap) => {
       fetched.push(docSnap.data() as AssessmentRecord);
     });
+
+    // Also fetch by phone if available and different from ID
+    if (teacherPhone && teacherPhone !== teacherId) {
+      try {
+        const qPhone = query(collection(db, 'assessments'), where('teacher_id', '==', teacherPhone));
+        const phoneSnap = await getDocs(qPhone);
+        phoneSnap.forEach((docSnap) => {
+          fetched.push(docSnap.data() as AssessmentRecord);
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
 
     const mergedMap = new Map<string, AssessmentRecord>();
 
@@ -198,7 +211,7 @@ export async function saveFirebaseAttendance(attendanceRec: any): Promise<boolea
   }
 }
 
-export async function fetchFirebaseAttendance(teacherId: string): Promise<any[]> {
+export async function fetchFirebaseAttendance(teacherId: string, teacherPhone?: string): Promise<any[]> {
   try {
     const q = query(collection(db, 'attendance'), where('teacher_id', '==', teacherId));
     const querySnapshot = await getDocs(q);
@@ -206,6 +219,20 @@ export async function fetchFirebaseAttendance(teacherId: string): Promise<any[]>
     querySnapshot.forEach((docSnap) => {
       fetched.push(docSnap.data());
     });
+    if (teacherPhone && teacherPhone !== teacherId) {
+      try {
+        const qPhone = query(collection(db, 'attendance'), where('teacher_id', '==', teacherPhone));
+        const phoneSnap = await getDocs(qPhone);
+        phoneSnap.forEach((docSnap) => {
+          const d = docSnap.data();
+          if (!fetched.some(a => a.id === d.id)) {
+            fetched.push(d);
+          }
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
     return fetched;
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, 'attendance');
@@ -225,7 +252,7 @@ export async function saveFirebaseStudent(student: any, teacherId: string): Prom
   }
 }
 
-export async function fetchFirebaseStudents(teacherId: string): Promise<any[]> {
+export async function fetchFirebaseStudents(teacherId: string, teacherPhone?: string): Promise<any[]> {
   try {
     const q = query(collection(db, 'students'), where('teacher_id', '==', teacherId));
     const querySnapshot = await getDocs(q);
@@ -233,6 +260,20 @@ export async function fetchFirebaseStudents(teacherId: string): Promise<any[]> {
     querySnapshot.forEach((docSnap) => {
       fetched.push(docSnap.data());
     });
+    if (teacherPhone && teacherPhone !== teacherId) {
+      try {
+        const qPhone = query(collection(db, 'students'), where('teacher_id', '==', teacherPhone));
+        const phoneSnap = await getDocs(qPhone);
+        phoneSnap.forEach((docSnap) => {
+          const d = docSnap.data();
+          if (!fetched.some(s => s.id === d.id)) {
+            fetched.push(d);
+          }
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
     return fetched;
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, 'students');

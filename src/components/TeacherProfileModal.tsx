@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, Check, Save, Calendar, Plus, Trash2, Database, AlertCircle, RefreshCw, Clock } from 'lucide-react';
 import { fetchRawFirebaseRecords, getLocalRecords, saveLocalRecords, syncOfflineRecords, getLastSyncTime } from '../lib/firebase';
 import { TeacherProfile } from '../types';
@@ -29,6 +29,23 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   const [officialHolidays, setOfficialHolidays] = useState<string[]>(teacher.officialHolidays || []);
   const [newHoliday, setNewHoliday] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [profileError, setProfileError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setName(teacher.name);
+      setId(teacher.id);
+      setSubject(teacher.subject);
+      setSchool(teacher.school);
+      setSubjectIcon(teacher.subjectIcon || 'Book');
+      setSupervisorPhone(teacher.supervisorPhone || '');
+      setPrincipalPhone(teacher.principalPhone || '');
+      setDeputyPhone(teacher.deputyPhone || '');
+      setOfficialHolidays(teacher.officialHolidays || []);
+      setProfileError('');
+      setSavedSuccess(false);
+    }
+  }, [isOpen, teacher]);
 
   const [activeTab, setActiveTab] = useState<'profile' | 'database' | 'sync'>('profile');
   
@@ -125,8 +142,6 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   };
 
   if (!isOpen) return null;
-
-  const [profileError, setProfileError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
