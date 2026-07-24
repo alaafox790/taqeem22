@@ -1,8 +1,14 @@
 export type TermId = 'term1' | 'term2';
 
-export type AppTab = 'home' | 'assessments' | 'students' | 'stats' | 'reports' | 'search' | 'admin';
+export type AppTab = 'home' | 'assessments' | 'students' | 'stats' | 'reports' | 'search' | 'settings' | 'admin';
 
 export type AttendanceStatus = 'present' | 'absent' | 'excused';
+
+export interface StatusColors {
+  present: string;
+  absent: string;
+  excused: string;
+}
 
 export interface Student {
   id: string;

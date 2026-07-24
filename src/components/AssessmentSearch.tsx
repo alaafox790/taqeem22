@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, Calendar, BookOpen, Clock, AlertTriangle, User, Users } from 'lucide-react';
-import { AssessmentRecord, Student, StudentAttendance, TermId } from '../types';
+import { AssessmentRecord, Student, StudentAttendance, TermId, StatusColors } from '../types';
 import { GRADES, CLASSES_COUNT } from '../lib/constants';
 import { fetchFirebaseStudents, fetchFirebaseAttendance } from '../lib/firebase';
+import { DEFAULT_STATUS_COLORS } from '../lib/statusColors';
 
 interface AssessmentSearchProps {
   teacherId: string;
   records: AssessmentRecord[];
   selectedTerm: TermId;
+  statusColors?: StatusColors;
 }
 
 const ROSTER_STORAGE_KEY = 'school_assessments_students_roster_v1';
 const ATTENDANCE_STORAGE_KEY = 'school_assessments_attendance_v1';
 
-export const AssessmentSearch: React.FC<AssessmentSearchProps> = ({ records, selectedTerm, teacherId }) => {
+export const AssessmentSearch: React.FC<AssessmentSearchProps> = ({ records, selectedTerm, teacherId, statusColors = DEFAULT_STATUS_COLORS }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterGrade, setFilterGrade] = useState<string>('');
   const [filterClassNum, setFilterClassNum] = useState<number | ''>('');
@@ -160,16 +162,16 @@ export const AssessmentSearch: React.FC<AssessmentSearchProps> = ({ records, sel
                 <div className="flex flex-wrap items-center justify-center gap-3 py-2 px-4 bg-slate-100/80 rounded-xl text-xs font-bold text-slate-600 border border-slate-200/60 shadow-xs">
                   <span className="text-slate-400 text-[11px]">دليل التقييمات الـ 15:</span>
                   <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/40 inline-block"></span>
+                    <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: statusColors.present, boxShadow: `0 2px 4px ${statusColors.present}60` }}></span>
                     <span>حاضر</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded-full bg-rose-500 shadow-xs shadow-rose-500/40 inline-block"></span>
+                    <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: statusColors.absent, boxShadow: `0 2px 4px ${statusColors.absent}60` }}></span>
                     <span>غائب</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded-full bg-amber-500 shadow-xs shadow-amber-500/40 inline-block"></span>
-                    <span>عذر</span>
+                    <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: statusColors.excused, boxShadow: `0 2px 4px ${statusColors.excused}60` }}></span>
+                    <span>بعذر / تأجيل</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="w-3 h-3 rounded-full bg-slate-300 border border-slate-400/50 inline-block"></span>
@@ -205,10 +207,16 @@ export const AssessmentSearch: React.FC<AssessmentSearchProps> = ({ records, sel
 
                         {/* Counts */}
                         <div className="flex items-center gap-1.5 text-xs font-black">
-                          <span className="bg-emerald-100/80 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-200/80">
+                          <span
+                            className="px-2.5 py-1 rounded-full border"
+                            style={{ backgroundColor: `${statusColors.present}1a`, color: statusColors.present, borderColor: `${statusColors.present}40` }}
+                          >
                             حاضر: {presentCount}
                           </span>
-                          <span className="bg-rose-100/80 text-rose-800 px-2.5 py-1 rounded-full border border-rose-200/80">
+                          <span
+                            className="px-2.5 py-1 rounded-full border"
+                            style={{ backgroundColor: `${statusColors.absent}1a`, color: statusColors.absent, borderColor: `${statusColors.absent}40` }}
+                          >
                             غائب: {absentCount}
                           </span>
                         </div>
@@ -221,19 +229,35 @@ export const AssessmentSearch: React.FC<AssessmentSearchProps> = ({ records, sel
                             const assessNum = idx + 1;
                             const rec = recordByNum[assessNum];
                             
-                            let circleStyle = "bg-slate-200 text-slate-700 border border-slate-300 hover:bg-slate-300"; // Plain/sada (not taken)
+                            let customCircleStyle: React.CSSProperties = {
+                              backgroundColor: '#e2e8f0',
+                              color: '#334155',
+                              border: '1px solid #cbd5e1',
+                            };
                             let statusText = "لم يُقيم بعد";
 
                             if (rec) {
                               if (rec.status === 'present') {
-                                circleStyle = "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-xs shadow-emerald-500/40 ring-1 ring-emerald-300";
+                                customCircleStyle = {
+                                  backgroundColor: statusColors.present,
+                                  color: '#ffffff',
+                                  boxShadow: `0 2px 6px ${statusColors.present}60`,
+                                };
                                 statusText = "حاضر";
                               } else if (rec.status === 'absent') {
-                                circleStyle = "bg-gradient-to-br from-rose-400 to-rose-600 text-white shadow-xs shadow-rose-500/40 ring-1 ring-rose-300";
+                                customCircleStyle = {
+                                  backgroundColor: statusColors.absent,
+                                  color: '#ffffff',
+                                  boxShadow: `0 2px 6px ${statusColors.absent}60`,
+                                };
                                 statusText = "غائب";
                               } else if (rec.status === 'excused') {
-                                circleStyle = "bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-xs shadow-amber-500/40 ring-1 ring-amber-300";
-                                statusText = "بعذر";
+                                customCircleStyle = {
+                                  backgroundColor: statusColors.excused,
+                                  color: '#ffffff',
+                                  boxShadow: `0 2px 6px ${statusColors.excused}60`,
+                                };
+                                statusText = "بعذر / تأجيل";
                               }
                             }
 
@@ -241,7 +265,8 @@ export const AssessmentSearch: React.FC<AssessmentSearchProps> = ({ records, sel
                               <div
                                 key={assessNum}
                                 title={`تقييم ${assessNum}: ${statusText}${rec?.notes ? ` (${rec.notes})` : ''}`}
-                                className={`w-8 h-8 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs sm:text-[11px] md:text-xs font-black shrink-0 transition-transform hover:scale-110 cursor-pointer select-none ${circleStyle}`}
+                                className="w-8 h-8 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs sm:text-[11px] md:text-xs font-black shrink-0 transition-transform hover:scale-110 cursor-pointer select-none"
+                                style={customCircleStyle}
                               >
                                 {assessNum}
                               </div>

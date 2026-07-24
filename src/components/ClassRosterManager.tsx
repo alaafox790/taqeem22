@@ -24,8 +24,9 @@ import {
   Sparkles,
   Smile
 } from 'lucide-react';
-import { Student, TermId, StudentAttendance, AttendanceStatus, AssessmentRecord } from '../types';
+import { Student, TermId, StudentAttendance, AttendanceStatus, AssessmentRecord, StatusColors } from '../types';
 import { GRADES, CLASSES_COUNT, MONTHS_DATA } from '../lib/constants';
+import { DEFAULT_STATUS_COLORS } from '../lib/statusColors';
 
 interface ClassRosterManagerProps {
   selectedTerm: TermId;
@@ -34,6 +35,7 @@ interface ClassRosterManagerProps {
   teacherId: string;
   isFirebaseConnected?: boolean;
   onDeleteRecordsForClass?: (grade: string, classNum: number) => void;
+  statusColors?: StatusColors;
 }
 
 const ROSTER_STORAGE_KEY = 'school_assessments_students_roster_v1';
@@ -46,7 +48,7 @@ import * as XLSX from 'xlsx';
 import { toPng } from 'html-to-image';
 
 
-export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selectedTerm, records, selectedMonthId, teacherId, isFirebaseConnected, onDeleteRecordsForClass }) => {
+export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selectedTerm, records, selectedMonthId, teacherId, isFirebaseConnected, onDeleteRecordsForClass, statusColors = DEFAULT_STATUS_COLORS }) => {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
 
   // Search and Filter
@@ -757,19 +759,32 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
     
     let btnClass = "w-6 h-6 rounded-md flex items-center justify-center transition-all duration-300 shadow-sm mx-auto cursor-pointer border group-hover/btn:scale-110 group-hover/btn:-rotate-6 group-hover/btn:shadow-md active:scale-95";
     let icon = <Minus className="w-3 h-3 text-slate-400" />;
+    let customBtnStyle: React.CSSProperties = {};
 
     if (status === 'present') {
-      btnClass += " bg-emerald-100 border-emerald-300 group-hover/btn:bg-emerald-500 group-hover/btn:border-emerald-600";
-      icon = <Check className="w-3.5 h-3.5 text-emerald-600 group-hover/btn:text-white transition-colors" strokeWidth={3} />;
+      const c = statusColors.present;
+      customBtnStyle = {
+        backgroundColor: `${c}22`,
+        borderColor: `${c}60`,
+      };
+      icon = <Check className="w-3.5 h-3.5 transition-colors" strokeWidth={3} style={{ color: c }} />;
     } else if (status === 'absent') {
-      btnClass += " bg-rose-100 border-rose-300 group-hover/btn:bg-rose-500 group-hover/btn:border-rose-600";
-      icon = <X className="w-3.5 h-3.5 text-rose-600 group-hover/btn:text-white transition-colors" strokeWidth={3} />;
+      const c = statusColors.absent;
+      customBtnStyle = {
+        backgroundColor: `${c}22`,
+        borderColor: `${c}60`,
+      };
+      icon = <X className="w-3.5 h-3.5 transition-colors" strokeWidth={3} style={{ color: c }} />;
     } else if (status === 'excused') {
-      btnClass += " bg-amber-100 border-amber-300 group-hover/btn:bg-amber-500 group-hover/btn:border-amber-600";
-      icon = <Minus className="w-3.5 h-3.5 text-amber-600 group-hover/btn:text-white transition-colors" strokeWidth={3} />;
+      const c = statusColors.excused;
+      customBtnStyle = {
+        backgroundColor: `${c}22`,
+        borderColor: `${c}60`,
+      };
+      icon = <Minus className="w-3.5 h-3.5 transition-colors" strokeWidth={3} style={{ color: c }} />;
     } else {
-      btnClass += " bg-slate-50 border-slate-200 group-hover/btn:bg-emerald-50 group-hover/btn:border-emerald-200";
-      icon = <Check className="w-3.5 h-3.5 text-transparent group-hover/btn:text-emerald-200 transition-colors" strokeWidth={3} />; 
+      btnClass += " bg-slate-50 border-slate-200 group-hover/btn:bg-slate-100";
+      icon = <Check className="w-3.5 h-3.5 text-transparent group-hover/btn:text-slate-300 transition-colors" strokeWidth={3} />; 
     }
 
     return (
@@ -777,6 +792,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
         <button
           onClick={() => toggleAttendance(studentId, studentName, assessNum)}
           className={`${btnClass} group/btn`}
+          style={customBtnStyle}
           title={status === 'present' ? `حاضر (نموذج ${assignedModel})` : status === 'absent' ? `غائب (نموذج ${assignedModel})` : status === 'excused' ? `بعذر (نموذج ${assignedModel})` : `غير مسجل (نموذج ${assignedModel})`}
         >
           {icon}
@@ -1029,7 +1045,8 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
               <div className="flex items-center gap-2 grow sm:grow-0">
                 <button
                   onClick={() => handleBatchAttendance('present')}
-                  className="flex-1 sm:flex-initial bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-400/40"
+                  style={{ backgroundColor: statusColors.present }}
+                  className="flex-1 sm:flex-initial hover:opacity-90 active:scale-95 text-white font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-white/20"
                   title={`تسجيل حضور جميع الطلاب لتقييم ${batchTargetAssessNum}`}
                 >
                   <Check className="w-4 h-4" />
@@ -1038,7 +1055,8 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
 
                 <button
                   onClick={() => handleBatchAttendance('absent')}
-                  className="flex-1 sm:flex-initial bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-rose-400/40"
+                  style={{ backgroundColor: statusColors.absent }}
+                  className="flex-1 sm:flex-initial hover:opacity-90 active:scale-95 text-white font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-white/20"
                   title={`تسجيل غياب جميع الطلاب لتقييم ${batchTargetAssessNum}`}
                 >
                   <X className="w-4 h-4" />

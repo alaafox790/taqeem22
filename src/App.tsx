@@ -18,10 +18,12 @@ import { Toast, ToastMessage } from './components/Toast';
 import { LoginScreen } from './components/LoginScreen';
 
 import { HomeScreen } from './components/HomeScreen';
+import { SettingsScreen } from './components/SettingsScreen';
 
-import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab } from './types';
+import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab, StatusColors } from './types';
 import { getAdjustedDueDate } from './lib/validation';
 import { DEFAULT_TEACHER, DEFAULT_ACADEMIC_YEAR, MONTHS_DATA } from './lib/constants';
+import { getStoredStatusColors, saveStoredStatusColors } from './lib/statusColors';
 import {
   fetchFirebaseRecords,
   saveFirebaseAssessmentRecord,
@@ -54,6 +56,14 @@ export default function App() {
     }
     return DEFAULT_TEACHER;
   });
+
+  // Status colors state for indicators (present, absent, excused)
+  const [statusColors, setStatusColors] = useState<StatusColors>(getStoredStatusColors);
+
+  const handleSaveStatusColors = (newColors: StatusColors) => {
+    setStatusColors(newColors);
+    saveStoredStatusColors(newColors);
+  };
 
 
   // Academic year state
@@ -454,10 +464,6 @@ export default function App() {
                 teacher={teacher}
               />
             </div>
-
-            {/* Dashboard Stats */}
-            
-
           </div>
         )}
 
@@ -470,13 +476,13 @@ export default function App() {
               selectedMonthId={selectedMonth.id}
               teacherId={teacher.id}
               isFirebaseConnected={isFirebaseConnected}
+              statusColors={statusColors}
               onDeleteRecordsForClass={(grade, classNum) => {
                 setRecords(prev => prev.filter(r => !(r.grade === grade && r.class_num === classNum)));
               }}
             />
           </div>
         )}
-
 
         {/* SCREEN 3: الإحصائيات (Stats View) */}
         {activeTab === 'stats' && (
@@ -517,10 +523,26 @@ export default function App() {
           </div>
         )}
 
-        {/* SCREEN 5: البحث (Search View) */}
+        {/* SCREEN 5: تخصيص الألوان (Settings & Color Customization) */}
+        {activeTab === 'settings' && (
+          <div className="animate-fadeIn">
+            <SettingsScreen 
+              statusColors={statusColors}
+              onSaveStatusColors={handleSaveStatusColors}
+              showToast={(type, title, message) => setToast({ id: Date.now().toString(), type, title, message })}
+            />
+          </div>
+        )}
+
+        {/* SCREEN 6: البحث (Search View) */}
         {activeTab === 'search' && (
           <div className="animate-fadeIn">
-            <AssessmentSearch records={records} selectedTerm={selectedTerm} teacherId={teacher.id} />
+            <AssessmentSearch 
+              records={records} 
+              selectedTerm={selectedTerm} 
+              teacherId={teacher.id}
+              statusColors={statusColors}
+            />
           </div>
         )}
         

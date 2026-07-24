@@ -5,7 +5,7 @@ import {
   GraduationCap,
   Settings,
   ScrollText,
-  
+  Palette,
   FileText,
   CheckCircle2,
   Users,
@@ -143,6 +143,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <ScrollText className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'reports' ? 'text-violet-500' : 'text-slate-400'}`} />
               <span className="whitespace-nowrap">التقارير</span>
+            </button>
+
+            {/* Tab 5: Settings / Colors */}
+            <button
+              onClick={() => onSelectTab('settings')}
+              className={`flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer ${
+                activeTab === 'settings'
+                  ? 'bg-white text-indigo-600 shadow-[0_4px_15px_rgb(79,70,229,0.1)] border border-indigo-100 ring-1 ring-indigo-50/50 sm:scale-105'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
+              }`}
+              title="تخصيص وإعداد ألوان مؤشرات الحالة"
+            >
+              <Palette className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'settings' ? 'text-indigo-600' : 'text-slate-400'}`} />
+              <span className="whitespace-nowrap">الألوان</span>
             </button>
           </div>
 
