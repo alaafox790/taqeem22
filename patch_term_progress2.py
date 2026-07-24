@@ -1,5 +1,11 @@
-import React, { useMemo } from 'react';
+import re
+
+with open('src/components/TermProgress.tsx', 'r') as f:
+    content = f.read()
+
+new_content = """import React, { useMemo } from 'react';
 import { MonthInfo, AssessmentRecord, TermId } from '../types';
+import { MONTHS_DATA } from '../lib/constants';
 import { FileStack } from 'lucide-react';
 
 interface TermProgressProps {
@@ -43,3 +49,7 @@ export const TermProgress: React.FC<TermProgressProps> = ({
     </div>
   );
 };
+"""
+
+with open('src/components/TermProgress.tsx', 'w') as f:
+    f.write(new_content)

@@ -307,12 +307,20 @@ export async function syncOfflineRecords(teacherId: string): Promise<boolean> {
         syncCount++;
       }
     }
+
     if (syncCount > 0) {
       console.log(`Synced ${syncCount} offline records to Firebase.`);
     }
+    // Update last sync time
+    localStorage.setItem(`last_sync_time_${teacherId}`, new Date().toISOString());
     return true;
+
   } catch (err) {
     console.error('Error syncing offline records:', err);
     return false;
   }
+}
+
+export function getLastSyncTime(teacherId: string): string | null {
+  return localStorage.getItem(`last_sync_time_${teacherId}`);
 }

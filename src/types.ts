@@ -11,6 +11,7 @@ export interface Student {
   class_num: number;
   religion?: 'مسلم' | 'مسيحي';
   status?: 'مستجد' | 'باق';
+  parentPhone?: string;
 }
 
 export interface StudentAttendance {

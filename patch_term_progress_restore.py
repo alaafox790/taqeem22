@@ -1,4 +1,6 @@
-import React, { useMemo } from 'react';
+import re
+
+new_content = """import React, { useMemo } from 'react';
 import { MonthInfo, AssessmentRecord, TermId } from '../types';
 import { FileStack } from 'lucide-react';
 
@@ -43,3 +45,7 @@ export const TermProgress: React.FC<TermProgressProps> = ({
     </div>
   );
 };
+"""
+
+with open('src/components/TermProgress.tsx', 'w') as f:
+    f.write(new_content)

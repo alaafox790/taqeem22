@@ -428,6 +428,7 @@ export default function App() {
                 academicYear={academicYear}
                 monthAssessmentCounts={monthAssessmentCounts}
                 records={records}
+                selectedMonth={selectedMonth}
               />
             </div>
             <div className="max-w-4xl mx-auto shadow-sm rounded-xl">

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ScrollText, FileText, Download, Printer } from 'lucide-react';
+import { ScrollText, FileText, Download, Printer, Phone, MessageCircle, Edit2, Check, X, Palette, Settings } from 'lucide-react';
 import { AssessmentRecord, Student, StudentAttendance, TermId, MonthInfo } from '../types';
 import { GRADES, CLASSES_COUNT, MONTHS_DATA } from '../lib/constants';
 import * as XLSX from 'xlsx';
@@ -13,6 +13,26 @@ export const StudentReportsScreen: React.FC<StudentReportsScreenProps> = ({ reco
   const [selectedMonthId, setSelectedMonthId] = useState<string>(MONTHS_DATA.find(m => m.termId === selectedTerm)?.id || '');
   const [selectedGrade, setSelectedGrade] = useState<string>('');
   const [selectedClassNum, setSelectedClassNum] = useState<number | ''>('');
+
+  
+  const [editingPhoneId, setEditingPhoneId] = useState<string | null>(null);
+  const [editPhoneValue, setEditPhoneValue] = useState('');
+  const [triggerRender, setTriggerRender] = useState(0);
+
+  const [showColorSettings, setShowColorSettings] = useState(false);
+  const [colors, setColors] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('report_colors_v1') || '{"excellent":"emerald","average":"amber","weak":"rose"}');
+    } catch {
+      return { excellent: 'emerald', average: 'amber', weak: 'rose' };
+    }
+  });
+
+  const saveColors = (newColors: any) => {
+    setColors(newColors);
+    localStorage.setItem('report_colors_v1', JSON.stringify(newColors));
+  };
+
 
   const currentTermMonths = MONTHS_DATA.filter((m) => m.termId === selectedTerm);
   const selectedMonth = MONTHS_DATA.find(m => m.id === selectedMonthId);
@@ -66,7 +86,41 @@ export const StudentReportsScreen: React.FC<StudentReportsScreenProps> = ({ reco
       };
     }).sort((a, b) => a.student.name.localeCompare(b.student.name));
 
-  }, [records, selectedGrade, selectedClassNum, selectedMonthId]);
+  }, [records, selectedGrade, selectedClassNum, selectedMonthId, triggerRender]);
+
+  
+  const handleSavePhone = (studentId: string) => {
+    try {
+      const students: Student[] = JSON.parse(localStorage.getItem('school_assessments_students_roster_v1') || '[]');
+      const updated = students.map(s => s.id === studentId ? { ...s, parentPhone: editPhoneValue } : s);
+      localStorage.setItem('school_assessments_students_roster_v1', JSON.stringify(updated));
+      setEditingPhoneId(null);
+      setTriggerRender(prev => prev + 1);
+    } catch(e) {
+      console.error(e);
+    }
+  };
+  
+  const getWhatsAppMessage = (data: any) => {
+    return encodeURIComponent(`مرحباً ولي أمر الطالب ${data.student.name}،
+نود إعلامكم بأن نسبة حضور الطالب في التقييمات هي ${data.attendanceRate}% (حضر ${data.presentCount} وغاب ${data.absentCount}).
+يرجى المتابعة.`);
+  };
+
+
+  const getColorClasses = (rate: number) => {
+    const tier = rate >= 80 ? colors.excellent : rate >= 50 ? colors.average : colors.weak;
+    const map: Record<string, string> = {
+      emerald: 'bg-emerald-100 text-emerald-700',
+      amber: 'bg-amber-100 text-amber-700',
+      rose: 'bg-rose-100 text-rose-700',
+      indigo: 'bg-indigo-100 text-indigo-700',
+      purple: 'bg-purple-100 text-purple-700',
+      blue: 'bg-blue-100 text-blue-700',
+      teal: 'bg-teal-100 text-teal-700',
+    };
+    return map[tier] || map.emerald;
+  };
 
   const handleExportExcel = () => {
     if (reportData.length === 0) return;
@@ -133,6 +187,9 @@ export const StudentReportsScreen: React.FC<StudentReportsScreenProps> = ({ reco
               <option key={cNum} value={cNum}>فصل {cNum}</option>
             ))}
           </select>
+          <button onClick={() => setShowColorSettings(!showColorSettings)} className={`p-2 rounded-lg transition-colors ${showColorSettings ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}>
+            <Palette className="w-4 h-4" />
+          </button>
           <button onClick={handleExportExcel} disabled={reportData.length === 0} className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50">
             <Download className="w-4 h-4" />
           </button>
@@ -141,6 +198,41 @@ export const StudentReportsScreen: React.FC<StudentReportsScreenProps> = ({ reco
           </button>
         </div>
       </div>
+
+      {showColorSettings && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 print:hidden animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 mb-4 text-slate-800 font-bold">
+            <Settings className="w-4 h-4" />
+            <h3>تخصيص ألوان التقييم</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { key: 'excellent', label: 'المتفوق (حضور 80%+)' },
+              { key: 'average', label: 'المتوسط (حضور 50%-79%)' },
+              { key: 'weak', label: 'الضعيف (حضور < 50%)' }
+            ].map(tier => (
+              <div key={tier.key} className="bg-white p-3 rounded-lg border border-slate-200">
+                <p className="text-xs font-bold text-slate-500 mb-2">{tier.label}</p>
+                <div className="flex flex-wrap gap-2">
+                  {['emerald', 'amber', 'rose', 'indigo', 'purple', 'blue', 'teal'].map(c => (
+                    <button
+                      key={c}
+                      onClick={() => saveColors({ ...colors, [tier.key]: c })}
+                      className={`w-6 h-6 rounded-full border-2 ${colors[tier.key as keyof typeof colors] === c ? 'border-slate-800 scale-110 shadow-sm' : 'border-transparent hover:scale-110'} transition-transform bg-${c}-100 text-${c}-700 flex items-center justify-center`}
+                      style={{
+                        backgroundColor: c === 'emerald' ? '#d1fae5' : c === 'amber' ? '#fef3c7' : c === 'rose' ? '#ffe4e6' : c === 'indigo' ? '#e0e7ff' : c === 'purple' ? '#f3e8ff' : c === 'blue' ? '#dbeafe' : '#ccfbf1',
+                        color: c === 'emerald' ? '#047857' : c === 'amber' ? '#b45309' : c === 'rose' ? '#be123c' : c === 'indigo' ? '#4338ca' : c === 'purple' ? '#7e22ce' : c === 'blue' ? '#1d4ed8' : '#0f766e'
+                      }}
+                    >
+                      {colors[tier.key as keyof typeof colors] === c && <Check className="w-3 h-3" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!selectedGrade || !selectedClassNum ? (
         <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-100">
@@ -152,50 +244,65 @@ export const StudentReportsScreen: React.FC<StudentReportsScreenProps> = ({ reco
           <p className="text-slate-500 font-bold">لا توجد بيانات للطلاب في هذا الفصل</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reportData.map((data, idx) => (
-            <div key={data.student.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
-              <div className="flex justify-between items-start mb-4 pb-4 border-b border-slate-100">
-                <div>
-                  <h3 className="font-black text-slate-800 text-lg">{data.student.name}</h3>
-                  <p className="text-xs text-slate-500 mt-1 font-bold">
-                    الصف {data.student.grade} - فصل {data.student.class_num}
-                  </p>
+        <div className="animate-in fade-in">
+          <div className="flex items-center justify-between bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100">
+            <h3 className="font-bold text-slate-700">إجمالي الطلاب: {reportData.length} طالب</h3>
+            <p className="text-sm text-slate-500 font-medium">مرتبة أبجدياً</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
+            {reportData.map((data) => (
+              <div key={data.student.id} className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between relative group">
+                <div className="text-center mb-1">
+                  <h3 className="font-bold text-slate-800 text-[11px] leading-tight line-clamp-1" title={data.student.name}>{data.student.name}</h3>
+                  <div className={`mt-1.5 inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${getColorClasses(data.attendanceRate)}`}>
+                    حضور {data.attendanceRate}%
+                  </div>
                 </div>
-                <div className={`text-xl font-black ${data.attendanceRate >= 80 ? 'text-emerald-600' : data.attendanceRate >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>
-                  {data.attendanceRate}%
+                
+                <div className="mt-2 space-y-1">
+                  {editingPhoneId === data.student.id ? (
+                    <div className="flex flex-col gap-1">
+                      <input 
+                        type="tel" 
+                        value={editPhoneValue}
+                        onChange={(e) => setEditPhoneValue(e.target.value)}
+                        placeholder="رقم الهاتف"
+                        className="w-full text-[10px] p-1 border border-emerald-500 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500 text-center"
+                        autoFocus
+                      />
+                      <div className="flex gap-1">
+                        <button onClick={() => handleSavePhone(data.student.id)} className="flex-1 py-1 bg-emerald-100 text-emerald-700 rounded flex items-center justify-center hover:bg-emerald-200">
+                          <Check className="w-3 h-3" />
+                        </button>
+                        <button onClick={() => setEditingPhoneId(null)} className="flex-1 py-1 bg-rose-100 text-rose-700 rounded flex items-center justify-center hover:bg-rose-200">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : data.student.parentPhone ? (
+                    <div className="flex gap-1">
+                      <a href={`tel:${data.student.parentPhone}`} className="flex-1 flex items-center justify-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-1.5 rounded-lg text-[10px] font-bold transition-colors" title="اتصال">
+                        <Phone className="w-3 h-3" />
+                      </a>
+                      <a href={`https://wa.me/${data.student.parentPhone.replace(/^0/, '20')}?text=${getWhatsAppMessage(data)}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-1.5 rounded-lg text-[10px] font-bold transition-colors" title="واتساب">
+                        <MessageCircle className="w-3 h-3" />
+                      </a>
+                      <button onClick={() => { setEditPhoneValue(data.student.parentPhone || ''); setEditingPhoneId(data.student.id); }} className="flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-500 py-1.5 px-2 rounded-lg text-[10px] font-bold transition-colors" title="تعديل الرقم">
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => { setEditPhoneValue(''); setEditingPhoneId(data.student.id); }}
+                      className="w-full flex items-center justify-center gap-1 bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 text-slate-500 py-1.5 rounded-lg text-[10px] font-bold transition-colors"
+                    >
+                      <Phone className="w-3 h-3" /> إضافة رقم
+                    </button>
+                  )}
                 </div>
               </div>
-              
-              <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-                <div className="bg-emerald-50 text-emerald-700 rounded-lg p-2">
-                  <span className="block text-xs font-bold opacity-80 mb-1">حضور</span>
-                  <strong className="text-lg">{data.presentCount}</strong>
-                </div>
-                <div className="bg-rose-50 text-rose-700 rounded-lg p-2">
-                  <span className="block text-xs font-bold opacity-80 mb-1">غياب</span>
-                  <strong className="text-lg">{data.absentCount}</strong>
-                </div>
-                <div className="bg-amber-50 text-amber-700 rounded-lg p-2">
-                  <span className="block text-xs font-bold opacity-80 mb-1">بعذر</span>
-                  <strong className="text-lg">{data.excusedCount}</strong>
-                </div>
-              </div>
-
-              <div className="flex-1">
-                <h4 className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">الملاحظات</h4>
-                {data.notes.length > 0 ? (
-                  <ul className="space-y-1.5 list-disc list-inside text-sm text-slate-700">
-                    {data.notes.map((note, i) => (
-                      <li key={i} className="line-clamp-2" title={note}>{note}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-slate-400 italic">لا توجد ملاحظات مسجلة</p>
-                )}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+with open('src/components/Toast.tsx', 'w') as f:
+    f.write("""import React, { useEffect } from 'react';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -62,3 +63,5 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
     </AnimatePresence>
   );
 };
+""")
+print("Patched successfully!")
