@@ -15,7 +15,8 @@ import {
   Search,
   Shield,
   Wifi,
-  WifiOff
+  WifiOff,
+  LogOut
 } from 'lucide-react';
 import { TeacherProfile, AppTab } from '../types';
 
@@ -25,8 +26,9 @@ interface NavbarProps {
   activeTab: AppTab;
   onSelectTab: (tab: AppTab) => void;
   onOpenProfile: () => void;
-  onOpenArchive: () => void;
+  onOpenArchive?: () => void;
   isFirebaseConnected?: boolean;
+  onLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -37,6 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenProfile,
   onOpenArchive,
   isFirebaseConnected = true,
+  onLogout,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs dir-rtl">
@@ -204,6 +207,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               <Settings className="w-4 h-4 text-slate-400 mr-0.5" />
             </button>
+
+            {/* Logout Button */}
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors cursor-pointer"
+                title="تسجيل الخروج والعودة لشاشة الدخول"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
 
           </div>
 

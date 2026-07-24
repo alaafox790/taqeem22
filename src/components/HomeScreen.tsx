@@ -1,6 +1,6 @@
 import React from 'react';
 import { Award, GraduationCap, BarChart3, Search, Shield,
-  MessageCircle } from 'lucide-react';
+  MessageCircle, LogOut } from 'lucide-react';
 import { AppTab, TeacherProfile, AssessmentRecord, MonthInfo, TermId } from '../types';
 import { MONTHS_DATA } from '../lib/constants';
 import { motion } from 'motion/react';
@@ -14,9 +14,10 @@ interface HomeScreenProps {
   selectedTerm: TermId;
   academicYear: string;
   onOpenAssessment: (month: MonthInfo, assessNum: number, termId: TermId) => void;
+  onLogout?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onOpenProfile, records, selectedTerm, academicYear, onOpenAssessment }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onOpenProfile, records, selectedTerm, academicYear, onOpenAssessment, onLogout }) => {
   const currentMonthNumber = new Date().getMonth() + 1;
   let activeMonth = MONTHS_DATA.find(m => m.monthNumber === currentMonthNumber);
   if (!activeMonth) {
@@ -28,8 +29,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-start p-3 sm:p-4 space-y-4 sm:space-y-6">
-      {/* Top Bar for Settings */}
-      <div className="w-full max-w-2xl flex justify-end">
+      {/* Top Bar for Settings and Logout */}
+      <div className="w-full max-w-2xl flex justify-between items-center gap-2">
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 backdrop-blur-xl shadow-sm border border-slate-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition-all cursor-pointer"
+            title="تسجيل الخروج والعودة لشاشة الدخول"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>تسجيل الخروج</span>
+          </button>
+        )}
+
         <button
           onClick={onOpenProfile}
           className="flex items-center gap-2 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-white/80 backdrop-blur-xl shadow-lg shadow-violet-500/5 border border-white hover:bg-white hover:shadow-violet-500/10 transition-all active:scale-95 text-slate-700"
@@ -51,31 +63,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
       </div>
 
       {/* Header */}
-      <div className="text-center space-y-2 flex flex-col items-center relative">
+      <div className="text-center space-y-2.5 flex flex-col items-center relative">
         {/* Glow blobs to make the glass effect visible */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-fuchsia-400/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
         <div className="absolute top-20 left-0 w-72 h-72 bg-amber-300/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
         <div className="absolute -bottom-20 left-20 w-64 h-64 bg-cyan-400/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
         
         <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative inline-flex items-center justify-center px-6 py-3 sm:px-10 sm:py-5 rounded-3xl bg-white/60 backdrop-blur-xl border border-white/80 shadow-lg overflow-hidden"
+          initial={{ opacity: 0, scale: 0.95, y: -20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative inline-flex flex-col items-center justify-center px-8 py-5 sm:px-12 sm:py-6 rounded-3xl bg-gradient-to-b from-white/90 via-white/70 to-amber-50/50 backdrop-blur-2xl border border-amber-200/60 shadow-[0_15px_40px_rgba(245,158,11,0.12)] overflow-hidden"
         >
-          {/* Shiny sweep effect (auto running) */}
-          <div className="absolute inset-0 -translate-x-[150%] animate-[shimmer_3s_infinite] bg-gradient-to-r from-transparent via-white/80 to-transparent skew-x-12 w-[150%]"></div>
-          <h1 className="relative text-4xl sm:text-5xl md:text-6xl font-black bg-gradient-to-r from-violet-600 via-fuchsia-600 to-orange-500 bg-clip-text text-transparent drop-shadow-md">
+          {/* Shiny sweep effect */}
+          <div className="absolute inset-0 -translate-x-[150%] animate-[shimmer_3.5s_infinite] bg-gradient-to-r from-transparent via-amber-200/40 to-transparent skew-x-12 w-[150%]"></div>
+          
+          <h1 className="relative text-5xl sm:text-6xl md:text-7xl font-black bg-gradient-to-r from-amber-600 via-fuchsia-600 to-indigo-600 bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(217,119,6,0.25)] font-serif tracking-tight">
             تقييماتي
           </h1>
+
+          <motion.p 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="text-xs sm:text-sm font-extrabold text-amber-700/80 tracking-widest pt-1.5 border-t border-amber-200/40 mt-1.5 w-full text-center"
+          >
+            مدمرة حياتي
+          </motion.p>
         </motion.div>
-        <motion.p 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="text-sm text-fuchsia-600/80 font-black tracking-widest relative z-10"
-        >
-          مدمرة حياتي
-        </motion.p>
       </div>
 
       {/* Grid */}

@@ -4,8 +4,17 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { fetchAllFirebaseTeachers, fetchFirebaseStudents, fetchFirebaseAttendance, fetchFirebaseRecords } from '../lib/firebase';
 import { TeacherProfile } from '../types';
 
+export interface ManagementSessionData {
+  isManagement: boolean;
+  role: 'principal' | 'deputy' | 'supervisor';
+  pinCode: string;
+  subject: string;
+  phone?: string;
+}
+
 interface AdminDashboardProps {
   onLogout: () => void;
+  managementData?: ManagementSessionData | null;
 }
 
 const SUBJECTS = ['اللغة العربية', 'اللغة الانجليزية', 'الدراسات الاجتماعية', 'العلوم', 'الرياضيات', 'أخرى'];
@@ -27,10 +36,12 @@ const getSubjectIcon = (iconName?: string) => {
 };
 
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
-  const [adminPhone, setAdminPhone] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [adminRole, setAdminRole] = useState<'principal' | 'deputy' | 'supervisor' | null>(null);
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, managementData }) => {
+  const [adminPhone, setAdminPhone] = useState(managementData?.phone || '');
+  const [isAuthenticated, setIsAuthenticated] = useState(!!managementData?.isManagement);
+  const [adminRole, setAdminRole] = useState<'principal' | 'deputy' | 'supervisor' | null>(
+    managementData?.role || null
+  );
   const [globalTeachers, setGlobalTeachers] = useState<TeacherProfile[]>([]);
   const [activeMainTab, setActiveMainTab] = useState<'teachers' | 'tracking'>('teachers');
   const [trackingRecords, setTrackingRecords] = useState<any[]>([]);
@@ -39,8 +50,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [allTeachers, setAllTeachers] = useState<TeacherProfile[]>([]);
   const [loading, setLoading] = useState(false);
   
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(
+    managementData?.role === 'supervisor' ? managementData.subject : null
+  );
   const [selectedTeacher, setSelectedTeacher] = useState<TeacherProfile | null>(null);
+
+  useEffect(() => {
+    if (managementData && managementData.isManagement) {
+      const initFromManagement = async () => {
+        setLoading(true);
+        try {
+          const teachers = await fetchAllFirebaseTeachers();
+          setGlobalTeachers(teachers);
+          setAdminPhone(managementData.phone || '05XXXXXXXX');
+          setAdminRole(managementData.role);
+          setAllTeachers(teachers);
+          if (managementData.role === 'supervisor' && managementData.subject) {
+            setSelectedSubject(managementData.subject);
+          }
+          setIsAuthenticated(true);
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      initFromManagement();
+    }
+  }, [managementData]);
   
   const [teacherStudents, setTeacherStudents] = useState<any[]>([]);
   const [teacherRecords, setTeacherRecords] = useState<any[]>([]);

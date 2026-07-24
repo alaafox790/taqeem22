@@ -9,16 +9,17 @@ import { TermProgress } from './components/TermProgress';
 import { ClassRosterManager } from './components/ClassRosterManager';
 import { ClassStats } from './components/ClassStats';
 import { LateAssessments } from './components/LateAssessments';
-import { AdminDashboard } from './components/AdminDashboard';
+import { AdminDashboard, ManagementSessionData } from './components/AdminDashboard';
 import { StudentReportsScreen } from './components/StudentReportsScreen';
 import { AssessmentModal } from './components/AssessmentModal';
 import { DuplicateConfirmModal } from './components/DuplicateConfirmModal';
 import { TeacherProfileModal } from './components/TeacherProfileModal';
 import { Toast, ToastMessage } from './components/Toast';
-import { LoginScreen } from './components/LoginScreen';
+import { LoginScreen, ManagementLoginData } from './components/LoginScreen';
 
 import { HomeScreen } from './components/HomeScreen';
 import { SettingsScreen } from './components/SettingsScreen';
+import { SplashScreen } from './components/SplashScreen';
 
 import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab, StatusColors } from './types';
 import { getAdjustedDueDate } from './lib/validation';
@@ -39,6 +40,8 @@ const TEACHER_STORAGE_KEY = 'school_assessments_teacher_profile';
 const YEAR_STORAGE_KEY = 'school_assessments_academic_year';
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState<boolean>(true);
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
   });
@@ -379,14 +382,35 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [isAuthenticated, records]);
 
-  const handleLogin = (phone: string) => {
+  const [managementSession, setManagementSession] = useState<ManagementSessionData | null>(null);
+
+  const handleLogin = (phone: string, managementData?: ManagementLoginData) => {
     setIsAuthenticated(true);
     localStorage.setItem(AUTH_STORAGE_KEY, 'true');
-    // Save phone to profile optionally if wanted, or just skip
     if (!teacher.phone) {
       setTeacher({ ...teacher, phone });
       localStorage.setItem(TEACHER_STORAGE_KEY, JSON.stringify({ ...teacher, phone }));
     }
+
+    if (managementData?.isManagement) {
+      const sessionData: ManagementSessionData = {
+        isManagement: true,
+        role: managementData.role,
+        pinCode: managementData.pinCode,
+        subject: managementData.subject,
+        phone,
+      };
+      setManagementSession(sessionData);
+      setActiveTab('admin');
+    } else {
+      setManagementSession(null);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setManagementSession(null);
+    localStorage.setItem(AUTH_STORAGE_KEY, 'false');
   };
 
   if (!isAuthenticated) {
@@ -396,6 +420,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#fafcff] text-slate-800 font-['Tajawal',sans-serif] pb-16 dir-rtl transition-colors duration-200">
       
+      {/* Opening Splash Screen */}
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+
       {/* Top Navbar with Screen Tabs - Hide on Home Screen */}
       {activeTab !== 'home' && (
         <Navbar
@@ -405,6 +432,7 @@ export default function App() {
           onSelectTab={setActiveTab}
           onOpenProfile={() => setIsProfileOpen(true)}
           isFirebaseConnected={isFirebaseConnected}
+          onLogout={handleLogout}
         />
       )}
 
@@ -426,6 +454,7 @@ export default function App() {
               setActiveAssessNum(num);
               setActiveTab('assessments');
             }}
+            onLogout={handleLogout}
           />
         )}
 
@@ -549,7 +578,13 @@ export default function App() {
         {/* SCREEN 6: الإدارة المدرسية (Admin View) */}
         {activeTab === 'admin' && (
           <div className="animate-fadeIn">
-            <AdminDashboard onLogout={() => setActiveTab('home')} />
+            <AdminDashboard
+              onLogout={() => {
+                setManagementSession(null);
+                setActiveTab('home');
+              }}
+              managementData={managementSession}
+            />
           </div>
         )}
       </main>
