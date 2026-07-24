@@ -26,6 +26,8 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   const [school, setSchool] = useState(teacher.school);
   const [educationalStage, setEducationalStage] = useState(teacher.educationalStage || 'المرحلة الإعدادية');
   const [classesTaught, setClassesTaught] = useState(teacher.classesTaught || '1/1، 1/2، 2/1، 3/1');
+  const [selectedGradeForClass, setSelectedGradeForClass] = useState<'1' | '2' | '3'>('1');
+  const [selectedSectionForClass, setSelectedSectionForClass] = useState<string>('');
   const [subjectIcon, setSubjectIcon] = useState(teacher.subjectIcon || "Book");
   const [supervisorPhone, setSupervisorPhone] = useState(teacher.supervisorPhone || '');
   const [principalPhone, setPrincipalPhone] = useState(teacher.principalPhone || '');
@@ -53,6 +55,36 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
       setSavedSuccess(false);
     }
   }, [isOpen, teacher]);
+
+  // Class selection helpers (Grade 1-3, Section 1-15)
+  const getClassOptions = (grade: '1' | '2' | '3') => {
+    const options: string[] = [];
+    for (let i = 1; i <= 15; i++) {
+      options.push(`${grade}/${i}`);
+    }
+    return options;
+  };
+
+  const handleAddClass = (classNum: string) => {
+    if (!classNum) return;
+    const currentList = classesTaught
+      ? classesTaught.split(/[,،]/).map(c => c.trim()).filter(Boolean)
+      : [];
+    
+    if (!currentList.includes(classNum)) {
+      const newList = [...currentList, classNum];
+      setClassesTaught(newList.join('، '));
+    }
+    setSelectedSectionForClass('');
+  };
+
+  const handleRemoveClass = (classNum: string) => {
+    const currentList = classesTaught
+      ? classesTaught.split(/[,،]/).map(c => c.trim()).filter(Boolean)
+      : [];
+    const newList = currentList.filter(c => c !== classNum);
+    setClassesTaught(newList.join('، '));
+  };
 
   const [activeTab, setActiveTab] = useState<'profile' | 'database' | 'sync'>('profile');
   
@@ -510,35 +542,111 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                 </select>
               </div>
 
-              <div className="col-span-1 sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  الفصول التي يقوم المعلم بتدريسها
-                </label>
-                <input
-                  type="text"
-                  value={classesTaught}
-                  onChange={(e) => setClassesTaught(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
-                  placeholder="مثال: 1/1، 1/2، 2/1، 3/1"
-                />
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] text-slate-500 font-bold ml-1">إضافة سريعة:</span>
-                  {['1/1', '1/2', '1/3', '2/1', '2/2', '2/3', '3/1', '3/2', '3/3'].map(cls => (
+              <div className="col-span-1 sm:col-span-2 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                    الفصول التي يقوم المعلم بتدريسها
+                  </label>
+                  {classesTaught && (
                     <button
-                      key={cls}
                       type="button"
-                      onClick={() => {
-                        if (!classesTaught) {
-                          setClassesTaught(cls);
-                        } else if (!classesTaught.includes(cls)) {
-                          setClassesTaught(`${classesTaught}، ${cls}`);
+                      onClick={() => setClassesTaught('')}
+                      className="text-[11px] text-rose-500 hover:text-rose-700 font-bold cursor-pointer"
+                    >
+                      مسح الكل
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdowns: Grade Dropdown & Section Dropdown */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                      1. اختر الصف الدراسي
+                    </label>
+                    <select
+                      value={selectedGradeForClass}
+                      onChange={(e) => {
+                        const g = e.target.value as '1' | '2' | '3';
+                        setSelectedGradeForClass(g);
+                        setSelectedSectionForClass('');
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 cursor-pointer"
+                    >
+                      <option value="1">الصف الأول الإعدادي</option>
+                      <option value="2">الصف الثاني الإعدادي</option>
+                      <option value="3">الصف الثالث الإعدادي</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                      2. اختر الفصل (من {selectedGradeForClass}/1 حتى {selectedGradeForClass}/15)
+                    </label>
+                    <select
+                      value={selectedSectionForClass}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedSectionForClass(val);
+                        if (val) {
+                          handleAddClass(val);
                         }
                       }}
-                      className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-slate-700 dark:text-slate-300 font-bold transition-all cursor-pointer border border-slate-200 dark:border-slate-700"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 cursor-pointer"
                     >
-                      + {cls}
-                    </button>
-                  ))}
+                      <option value="">-- اضغط لاختيار الفصل للربط --</option>
+                      {getClassOptions(selectedGradeForClass).map((clsOption) => (
+                        <option key={clsOption} value={clsOption}>
+                          فصل {clsOption}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Selected Classes Chips */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center justify-between">
+                    <span>الفصول المحددة للمعلم حالياً:</span>
+                    <span className="text-[10px] text-slate-400 font-normal">اضغط على ✕ لإزالة فصل</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 min-h-[42px] p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                    {classesTaught
+                      ? classesTaught.split(/[,،]/).map(c => c.trim()).filter(Boolean).map((cls) => (
+                          <span
+                            key={cls}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 font-black text-xs border border-emerald-300/80 dark:border-emerald-700 shadow-2xs"
+                          >
+                            <span>فصل {cls}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveClass(cls)}
+                              className="w-4 h-4 rounded-full bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors cursor-pointer text-[10px]"
+                              title="إزالة الفصل"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))
+                      : (
+                        <span className="text-xs text-slate-400 font-medium italic">لم يتم تحديد فصول بعد. استخدم القوائم المنسدلة أعلاه لاختيار الفصول.</span>
+                      )
+                    }
+                  </div>
+                </div>
+
+                {/* Manual Text Option */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                    المفتاح النصي الشامل للفصول:
+                  </label>
+                  <input
+                    type="text"
+                    value={classesTaught}
+                    onChange={(e) => setClassesTaught(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-medium text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800"
+                    placeholder="مثال: 1/1، 1/2، 2/1، 3/1"
+                  />
                 </div>
               </div>
               
