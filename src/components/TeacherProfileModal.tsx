@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Check, Save, Calendar, Plus, Trash2, Database, AlertCircle, RefreshCw, Clock } from 'lucide-react';
+import { X, User, Check, Save, Calendar, Plus, Trash2, Database, AlertCircle, RefreshCw, Clock, Phone, ShieldCheck } from 'lucide-react';
 import { fetchRawFirebaseRecords, getLocalRecords, saveLocalRecords, syncOfflineRecords, getLastSyncTime } from '../lib/firebase';
 import { TeacherProfile } from '../types';
+import { isTeacherProfileComplete } from '../lib/validation';
 
 interface TeacherProfileModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
 }) => {
   const [name, setName] = useState(teacher.name);
   const [id, setId] = useState(teacher.id);
+  const [phone, setPhone] = useState(teacher.phone || '');
   const [subject, setSubject] = useState(teacher.subject);
   const [school, setSchool] = useState(teacher.school);
   const [educationalStage, setEducationalStage] = useState(teacher.educationalStage || 'المرحلة الإعدادية');
@@ -37,6 +39,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
     if (isOpen) {
       setName(teacher.name);
       setId(teacher.id);
+      setPhone(teacher.phone || '');
       setSubject(teacher.subject);
       setSchool(teacher.school);
       setEducationalStage(teacher.educationalStage || 'المرحلة الإعدادية');
@@ -149,23 +152,32 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim() || name.includes('اضغط للتعديل')) {
+      setProfileError('يرجى إدخال اسم المعلم بشكل صحيح');
+      return;
+    }
+    if (!phone.trim() || phone.trim().length < 8) {
+      setProfileError('رقم جوال المعلم إجباري ومكون من 8 أرقام على الأقل');
+      return;
+    }
     if (!principalPhone.trim() || principalPhone.trim().length < 8) {
-      setProfileError('رقم هاتف مدير المدرسة إجباري ومكون من 8 أرقام على الأقل');
+      setProfileError('رقم هاتف مدير المدرسة إجباري ومكون من 8 أرقام على الأقل لفتح التطبيق');
       return;
     }
     if (!deputyPhone.trim() || deputyPhone.trim().length < 8) {
-      setProfileError('رقم هاتف وكيل المدرسة إجباري ومكون من 8 أرقام على الأقل');
+      setProfileError('رقم هاتف وكيل المدرسة إجباري ومكون من 8 أرقام على الأقل لفتح التطبيق');
       return;
     }
     if (!supervisorPhone.trim() || supervisorPhone.trim().length < 8) {
-      setProfileError('رقم هاتف مشرف المادة إجباري ومكون من 8 أرقام على الأقل');
+      setProfileError('رقم هاتف مشرف المادة إجباري ومكون من 8 أرقام على الأقل لفتح التطبيق');
       return;
     }
     setProfileError('');
 
     onSaveTeacher({
       id: id.trim() || 'T-1001',
-      name: name.trim() || 'المعلم الفاضل',
+      name: name.trim(),
+      phone: phone.trim(),
       subject: subject.trim() || 'العامة',
       school: school.trim() || 'المدرسة',
       educationalStage: educationalStage,
@@ -364,6 +376,24 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
         {activeTab === 'profile' && (
           <form onSubmit={handleSubmit} className="space-y-6">
 
+          {/* Completion Status Badge */}
+          {(() => {
+            const isComp = isTeacherProfileComplete({
+              name, school, subject, phone, principalPhone, deputyPhone, supervisorPhone
+            });
+            return isComp ? (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>حالة الملف: مكتمل وموثق 100% - جميع أيقونات ومميزات التطبيق مفعلة.</span>
+              </div>
+            ) : (
+              <div className="p-3 bg-amber-50 border border-amber-300 text-amber-900 rounded-2xl text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                <span>حالة الملف: غير مكتمل - يرجى ملء كافة البيانات وأرقام الهواتف المطلوبة (*) لفتح جميع أيقونات التطبيق.</span>
+              </div>
+            );
+          })()}
+
           {profileError && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold animate-in fade-in">
               {profileError}
@@ -379,7 +409,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">اسم المعلم *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">اسم المعلم <span className="text-rose-500 font-bold">*</span></label>
                 <input
                   type="text"
                   required
@@ -387,6 +417,22 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
                   placeholder="مثال: د. أحمد محمود"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">رقم جوال المعلم <span className="text-rose-500 font-bold">*</span></label>
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setProfileError('');
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
+                  placeholder="05xxxxxxxxx"
+                  dir="ltr"
                 />
               </div>
               

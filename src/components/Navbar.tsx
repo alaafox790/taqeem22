@@ -19,6 +19,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { TeacherProfile, AppTab } from '../types';
+import { isTeacherProfileComplete } from '../lib/validation';
 
 interface NavbarProps {
   teacher: TeacherProfile;
@@ -41,6 +42,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   isFirebaseConnected = true,
   onLogout,
 }) => {
+  const isComplete = isTeacherProfileComplete(teacher);
+
+  const handleTabClick = (tab: AppTab) => {
+    if (tab !== 'home' && !isComplete) {
+      onOpenProfile();
+      return;
+    }
+    onSelectTab(tab);
+  };
+
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs dir-rtl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -98,7 +109,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center justify-between md:justify-center gap-0.5 sm:gap-1.5 w-full md:w-auto bg-slate-50/80 backdrop-blur-md p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-200/60 shadow-inner overflow-hidden">
             {/* Tab 1: Assessments */}
             <button
-              onClick={() => onSelectTab('assessments')}
+              onClick={() => handleTabClick('assessments')}
               className={`flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer ${
                 activeTab === 'assessments'
                   ? 'bg-white text-rose-600 shadow-[0_4px_15px_rgb(225,29,72,0.1)] border border-rose-100 ring-1 ring-rose-50/50 sm:scale-105'
@@ -111,7 +122,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Tab 2: Students Roster */}
             <button
-              onClick={() => onSelectTab('students')}
+              onClick={() => handleTabClick('students')}
               className={`flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer ${
                 activeTab === 'students'
                   ? 'bg-white text-blue-600 shadow-[0_4px_15px_rgb(37,99,235,0.1)] border border-blue-100 ring-1 ring-blue-50/50 sm:scale-105'
@@ -124,7 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Tab 3: Class Stats */}
             <button
-              onClick={() => onSelectTab('stats')}
+              onClick={() => handleTabClick('stats')}
               className={`flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer ${
                 activeTab === 'stats'
                   ? 'bg-white text-emerald-600 shadow-[0_4px_15px_rgb(16,185,129,0.1)] border border-emerald-100 ring-1 ring-emerald-50/50 sm:scale-105'
@@ -137,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Tab 4: Reports */}
             <button
-              onClick={() => onSelectTab('reports')}
+              onClick={() => handleTabClick('reports')}
               className={`flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer ${
                 activeTab === 'reports'
                   ? 'bg-white text-violet-600 shadow-[0_4px_15px_rgb(124,58,237,0.1)] border border-violet-100 ring-1 ring-violet-50/50 sm:scale-105'
@@ -150,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Tab 5: Settings / Colors */}
             <button
-              onClick={() => onSelectTab('settings')}
+              onClick={() => handleTabClick('settings')}
               className={`flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer ${
                 activeTab === 'settings'
                   ? 'bg-white text-indigo-600 shadow-[0_4px_15px_rgb(79,70,229,0.1)] border border-indigo-100 ring-1 ring-indigo-50/50 sm:scale-105'

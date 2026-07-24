@@ -16,14 +16,13 @@ import { DuplicateConfirmModal } from './components/DuplicateConfirmModal';
 import { TeacherProfileModal } from './components/TeacherProfileModal';
 import { Toast, ToastMessage } from './components/Toast';
 import { LoginScreen, ManagementLoginData } from './components/LoginScreen';
-import { RequiredManagementPhonesModal } from './components/RequiredManagementPhonesModal';
 
 import { HomeScreen } from './components/HomeScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { SplashScreen } from './components/SplashScreen';
 
 import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab, StatusColors } from './types';
-import { getAdjustedDueDate } from './lib/validation';
+import { getAdjustedDueDate, isTeacherProfileComplete } from './lib/validation';
 import { DEFAULT_TEACHER, DEFAULT_ACADEMIC_YEAR, MONTHS_DATA } from './lib/constants';
 import { getStoredStatusColors, saveStoredStatusColors } from './lib/statusColors';
 import {
@@ -46,6 +45,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
   });
+  const [managementSession, setManagementSession] = useState<ManagementSessionData | null>(null);
 
   // Navigation tab state (4 screens + countdown)
   const [activeTab, setActiveTab] = useState<AppTab>('home');
@@ -186,6 +186,13 @@ export default function App() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Prompt teacher to complete profile if incomplete
+  useEffect(() => {
+    if (isAuthenticated && !managementSession && !isTeacherProfileComplete(teacher)) {
+      setIsProfileOpen(true);
+    }
+  }, [isAuthenticated, managementSession, teacher]);
 
   // Handler: Update teacher profile
   const handleSaveTeacher = async (updated: TeacherProfile) => {
@@ -382,8 +389,6 @@ export default function App() {
     const timer = setTimeout(checkAndShowReminders, 4000);
     return () => clearTimeout(timer);
   }, [isAuthenticated, records]);
-
-  const [managementSession, setManagementSession] = useState<ManagementSessionData | null>(null);
 
   const handleLogin = (phone: string, managementData?: ManagementLoginData) => {
     setIsAuthenticated(true);
@@ -615,22 +620,6 @@ export default function App() {
         teacher={teacher}
         onSaveTeacher={handleSaveTeacher}
         onRefreshData={loadData}
-      />
-
-      {/* Mandatory Modal: Required Leadership Phones (Principal, Deputy, Supervisor) */}
-      <RequiredManagementPhonesModal
-        isOpen={
-          isAuthenticated &&
-          !managementSession &&
-          (!teacher.principalPhone ||
-            teacher.principalPhone.trim().length < 8 ||
-            !teacher.deputyPhone ||
-            teacher.deputyPhone.trim().length < 8 ||
-            !teacher.supervisorPhone ||
-            teacher.supervisorPhone.trim().length < 8)
-        }
-        teacher={teacher}
-        onSave={handleSaveTeacher}
       />
 
       {/* Toast Notification */}

@@ -75,6 +75,35 @@ export function isValidAcademicYear(yearStr: string): boolean {
   return regex.test(yearStr.trim());
 }
 
+export function isTeacherProfileComplete(teacher: any): boolean {
+  if (!teacher) return false;
+
+  const name = teacher.name?.trim();
+  const school = teacher.school?.trim();
+  const subject = teacher.subject?.trim();
+  const phone = teacher.phone?.trim();
+  const principalPhone = teacher.principalPhone?.trim();
+  const deputyPhone = teacher.deputyPhone?.trim();
+  const supervisorPhone = teacher.supervisorPhone?.trim();
+
+  // Name check: must exist and not be placeholder
+  if (!name || name.includes('اضغط للتعديل') || name.length < 3) {
+    return false;
+  }
+
+  // School and Subject
+  if (!school || school.length < 2) return false;
+  if (!subject || subject.length < 2) return false;
+
+  // Phones must exist and be at least 8 digits
+  if (!phone || phone.length < 8) return false;
+  if (!principalPhone || principalPhone.length < 8) return false;
+  if (!deputyPhone || deputyPhone.length < 8) return false;
+  if (!supervisorPhone || supervisorPhone.length < 8) return false;
+
+  return true;
+}
+
 /**
  * Calculates adjusted due date by pushing the due date forward for each official holiday
  */
