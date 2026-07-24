@@ -413,6 +413,10 @@ export default function App() {
     localStorage.setItem(AUTH_STORAGE_KEY, 'false');
   };
 
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
+
   if (!isAuthenticated) {
     return <LoginScreen onLogin={handleLogin} />;
   }
