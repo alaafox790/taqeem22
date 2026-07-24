@@ -16,6 +16,7 @@ import { DuplicateConfirmModal } from './components/DuplicateConfirmModal';
 import { TeacherProfileModal } from './components/TeacherProfileModal';
 import { Toast, ToastMessage } from './components/Toast';
 import { LoginScreen, ManagementLoginData } from './components/LoginScreen';
+import { RequiredManagementPhonesModal } from './components/RequiredManagementPhonesModal';
 
 import { HomeScreen } from './components/HomeScreen';
 import { SettingsScreen } from './components/SettingsScreen';
@@ -614,6 +615,22 @@ export default function App() {
         teacher={teacher}
         onSaveTeacher={handleSaveTeacher}
         onRefreshData={loadData}
+      />
+
+      {/* Mandatory Modal: Required Leadership Phones (Principal, Deputy, Supervisor) */}
+      <RequiredManagementPhonesModal
+        isOpen={
+          isAuthenticated &&
+          !managementSession &&
+          (!teacher.principalPhone ||
+            teacher.principalPhone.trim().length < 8 ||
+            !teacher.deputyPhone ||
+            teacher.deputyPhone.trim().length < 8 ||
+            !teacher.supervisorPhone ||
+            teacher.supervisorPhone.trim().length < 8)
+        }
+        teacher={teacher}
+        onSave={handleSaveTeacher}
       />
 
       {/* Toast Notification */}

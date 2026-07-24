@@ -126,8 +126,24 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
 
   if (!isOpen) return null;
 
+  const [profileError, setProfileError] = useState('');
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!principalPhone.trim() || principalPhone.trim().length < 8) {
+      setProfileError('رقم هاتف مدير المدرسة إجباري ومكون من 8 أرقام على الأقل');
+      return;
+    }
+    if (!deputyPhone.trim() || deputyPhone.trim().length < 8) {
+      setProfileError('رقم هاتف وكيل المدرسة إجباري ومكون من 8 أرقام على الأقل');
+      return;
+    }
+    if (!supervisorPhone.trim() || supervisorPhone.trim().length < 8) {
+      setProfileError('رقم هاتف مشرف المادة إجباري ومكون من 8 أرقام على الأقل');
+      return;
+    }
+    setProfileError('');
+
     onSaveTeacher({
       id: id.trim() || 'T-1001',
       name: name.trim() || 'المعلم الفاضل',
@@ -327,7 +343,12 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
         {activeTab === 'profile' && (
           <form onSubmit={handleSubmit} className="space-y-6">
 
-          
+          {profileError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold animate-in fade-in">
+              {profileError}
+            </div>
+          )}
+
           {/* Section 1: Teacher Details */}
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
@@ -410,11 +431,17 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
               </div>
               
               <div className="col-span-1 sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">رقم هاتف مدير المدرسة (للربط)</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  رقم هاتف مدير المدرسة (إجباري للربط) <span className="text-rose-500 font-bold">*</span>
+                </label>
                 <input
                   type="tel"
+                  required
                   value={principalPhone}
-                  onChange={(e) => setPrincipalPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPrincipalPhone(e.target.value);
+                    setProfileError('');
+                  }}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
                   placeholder="05xxxxxxxxx"
                   dir="ltr"
@@ -422,11 +449,17 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
               </div>
               
               <div className="col-span-1 sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">رقم هاتف وكيل شئون الطلاب (للربط)</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  رقم هاتف وكيل المدرسة (إجباري للربط) <span className="text-rose-500 font-bold">*</span>
+                </label>
                 <input
                   type="tel"
+                  required
                   value={deputyPhone}
-                  onChange={(e) => setDeputyPhone(e.target.value)}
+                  onChange={(e) => {
+                    setDeputyPhone(e.target.value);
+                    setProfileError('');
+                  }}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
                   placeholder="05xxxxxxxxx"
                   dir="ltr"
@@ -434,11 +467,17 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
               </div>
               
               <div className="col-span-1 sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">رقم هاتف مشرف المادة (للربط)</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  رقم هاتف مشرف المادة (إجباري للربط) <span className="text-rose-500 font-bold">*</span>
+                </label>
                 <input
                   type="tel"
+                  required
                   value={supervisorPhone}
-                  onChange={(e) => setSupervisorPhone(e.target.value)}
+                  onChange={(e) => {
+                    setSupervisorPhone(e.target.value);
+                    setProfileError('');
+                  }}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
                   placeholder="05xxxxxxxxx"
                   dir="ltr"
