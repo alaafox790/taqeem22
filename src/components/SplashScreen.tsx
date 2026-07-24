@@ -46,14 +46,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete, showDism
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
             className="mb-8 relative"
           >
-            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#00a8ff] via-emerald-400 to-amber-400 p-[3px] shadow-xl shadow-sky-500/20">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-[#0f2b5c] via-[#059669] to-[#f59e0b] p-[3px] shadow-xl shadow-[#0f2b5c]/20">
               <div className="w-full h-full bg-white rounded-[21px] flex items-center justify-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-tr from-sky-50 to-emerald-50"></div>
-                <Award className="w-10 h-10 text-amber-500 relative z-10 drop-shadow-sm" />
+                <Award className="w-10 h-10 text-[#059669] relative z-10 drop-shadow-sm" />
               </div>
             </div>
-            <Sparkles className="w-6 h-6 text-amber-500 absolute -top-2 -right-2 animate-bounce" />
-            <Star className="w-4 h-4 text-sky-500 absolute -bottom-1 -left-2 animate-pulse" />
+            <Sparkles className="w-6 h-6 text-[#f59e0b] absolute -top-2 -right-2 animate-bounce" />
+            <Star className="w-4 h-4 text-[#0f2b5c] absolute -bottom-1 -left-2 animate-pulse" />
           </motion.div>
 
           {/* Main Titles Container */}
@@ -63,12 +63,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete, showDism
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.7 }}
-              className="relative inline-block px-10 py-5 rounded-3xl bg-white/90 border border-sky-100 shadow-2xl shadow-sky-200/50 backdrop-blur-xl"
+              className="relative inline-block px-10 py-5 rounded-3xl bg-white/95 border border-sky-100 shadow-2xl shadow-[#0f2b5c]/10 backdrop-blur-xl"
             >
-              <h1 className="text-5xl sm:text-7xl font-black bg-gradient-to-r from-sky-600 via-emerald-600 to-amber-600 bg-clip-text text-transparent tracking-tight font-serif">
+              <h1 className="text-5xl sm:text-7xl font-black bg-gradient-to-r from-[#0f2b5c] via-[#059669] to-[#0f2b5c] bg-clip-text text-transparent tracking-tight font-serif">
                 تقييماتي
               </h1>
-              <div className="mt-2 inline-flex items-center gap-1.5 px-4 py-1 rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 text-white text-xs sm:text-sm font-black shadow-sm">
+              <div className="mt-2 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#0f2b5c] to-[#059669] text-white text-xs sm:text-sm font-black shadow-md shadow-emerald-700/20">
                 <span>المرحلة الإعدادية</span>
               </div>
             </motion.div>

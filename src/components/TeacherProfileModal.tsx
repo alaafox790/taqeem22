@@ -23,6 +23,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   const [subject, setSubject] = useState(teacher.subject);
   const [school, setSchool] = useState(teacher.school);
   const [educationalStage, setEducationalStage] = useState(teacher.educationalStage || 'المرحلة الإعدادية');
+  const [classesTaught, setClassesTaught] = useState(teacher.classesTaught || '1/1، 1/2، 2/1، 3/1');
   const [subjectIcon, setSubjectIcon] = useState(teacher.subjectIcon || "Book");
   const [supervisorPhone, setSupervisorPhone] = useState(teacher.supervisorPhone || '');
   const [principalPhone, setPrincipalPhone] = useState(teacher.principalPhone || '');
@@ -39,6 +40,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
       setSubject(teacher.subject);
       setSchool(teacher.school);
       setEducationalStage(teacher.educationalStage || 'المرحلة الإعدادية');
+      setClassesTaught(teacher.classesTaught || '1/1، 1/2، 2/1، 3/1');
       setSubjectIcon(teacher.subjectIcon || 'Book');
       setSupervisorPhone(teacher.supervisorPhone || '');
       setPrincipalPhone(teacher.principalPhone || '');
@@ -167,6 +169,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
       subject: subject.trim() || 'العامة',
       school: school.trim() || 'المدرسة',
       educationalStage: educationalStage,
+      classesTaught: classesTaught.trim(),
       supervisorPhone: supervisorPhone.trim(),
       principalPhone: principalPhone.trim(),
       deputyPhone: deputyPhone.trim(),
@@ -459,6 +462,38 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                   <option value="المرحلة الابتدائية">المرحلة الابتدائية</option>
                   <option value="المرحلة الثانوية">المرحلة الثانوية</option>
                 </select>
+              </div>
+
+              <div className="col-span-1 sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  الفصول التي يقوم المعلم بتدريسها
+                </label>
+                <input
+                  type="text"
+                  value={classesTaught}
+                  onChange={(e) => setClassesTaught(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
+                  placeholder="مثال: 1/1، 1/2، 2/1، 3/1"
+                />
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] text-slate-500 font-bold ml-1">إضافة سريعة:</span>
+                  {['1/1', '1/2', '1/3', '2/1', '2/2', '2/3', '3/1', '3/2', '3/3'].map(cls => (
+                    <button
+                      key={cls}
+                      type="button"
+                      onClick={() => {
+                        if (!classesTaught) {
+                          setClassesTaught(cls);
+                        } else if (!classesTaught.includes(cls)) {
+                          setClassesTaught(`${classesTaught}، ${cls}`);
+                        }
+                      }}
+                      className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-slate-700 dark:text-slate-300 font-bold transition-all cursor-pointer border border-slate-200 dark:border-slate-700"
+                    >
+                      + {cls}
+                    </button>
+                  ))}
+                </div>
               </div>
               
               <div className="col-span-1 sm:col-span-2">

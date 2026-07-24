@@ -12,6 +12,7 @@ export const DEFAULT_TEACHER: TeacherProfile = {
   subject: 'الرياضيات',
   school: 'المدرسة الإعدادية',
   educationalStage: 'المرحلة الإعدادية',
+  classesTaught: '1/1، 1/2، 2/1، 3/1',
 };
 
 export const DEFAULT_ACADEMIC_YEAR = '2026/2027';

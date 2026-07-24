@@ -49,6 +49,7 @@ export interface TeacherProfile {
   subject: string;
   school: string;
   educationalStage?: string;
+  classesTaught?: string;
   phone?: string;
   supervisorCode?: string;
   supervisorPhone?: string;

@@ -55,15 +55,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Home className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-3 bg-indigo-50/50 pr-2 pl-4 py-1.5 rounded-2xl border border-indigo-100/50">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 ring-2 ring-indigo-100 shrink-0">
+            <div className="flex items-center gap-3 bg-sky-50 pr-2 pl-4 py-1.5 rounded-2xl border border-sky-100">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-[#0f2b5c] via-[#113264] to-[#059669] flex items-center justify-center text-amber-300 shadow-md shadow-[#0f2b5c]/20 ring-2 ring-sky-100 shrink-0">
                 <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2]" />
               </div>
               <div className="flex flex-col justify-center">
-                <h1 className="text-sm sm:text-lg font-black bg-gradient-to-l from-violet-600 via-fuchsia-600 to-orange-500 bg-clip-text text-transparent leading-tight tracking-tight">
+                <h1 className="text-sm sm:text-lg font-black bg-gradient-to-l from-[#0f2b5c] via-[#059669] to-amber-600 bg-clip-text text-transparent leading-tight tracking-tight">
                   سجل التقييمات
                 </h1>
-                <span className="text-[10px] sm:text-xs font-extrabold text-slate-500 tracking-wide mt-0.5">
+                <span className="text-[10px] sm:text-xs font-extrabold text-[#0f2b5c]/70 tracking-wide mt-0.5">
                   المدرسية الأسبوعية
                 </span>
               </div>

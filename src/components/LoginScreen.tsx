@@ -101,7 +101,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-emerald-50/50 flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8 dir-rtl font-['Tajawal',sans-serif] select-none">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
         {/* Top App Icon Box */}
-        <div className="mx-auto w-16 h-16 bg-[#00a8ff] rounded-2xl flex items-center justify-center shadow-lg shadow-sky-500/25 mb-3 text-white">
+        <div className="mx-auto w-16 h-16 bg-[#0f2b5c] rounded-2xl flex items-center justify-center shadow-lg shadow-[#0f2b5c]/25 mb-3 text-amber-300">
           <LogIn className="w-8 h-8 stroke-[2.5]" />
         </div>
 
