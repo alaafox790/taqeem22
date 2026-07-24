@@ -106,7 +106,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         </div>
 
         <h2 className="text-center text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-          تسجيل الدخول للمنصة
+          تسجيل الدخول
         </h2>
         <p className="text-xs sm:text-sm text-slate-500 font-bold leading-relaxed max-w-xs mx-auto">
           أدخل رقم الجوال ثم اسحب لتسجيل الدخول.<br />
