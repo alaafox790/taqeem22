@@ -9,10 +9,22 @@ import {
   Lock,
   AlertTriangle,
   Search,
-  Filter
+  Filter,
+  Edit3,
+  Mic,
+  Settings,
+  Palette,
+  Star,
+  Heart,
+  Target,
+  Flag,
+  Book,
+  Award,
+  Sparkles,
+  Smile
 } from 'lucide-react';
 import { Student, TermId, StudentAttendance, AttendanceStatus, AssessmentRecord } from '../types';
-import { GRADES, CLASSES_COUNT } from '../lib/constants';
+import { GRADES, CLASSES_COUNT, MONTHS_DATA } from '../lib/constants';
 
 interface ClassRosterManagerProps {
   selectedTerm: TermId;
@@ -28,7 +40,7 @@ const ATTENDANCE_STORAGE_KEY = 'school_assessments_attendance_v1';
 import { saveFirebaseAttendance, saveFirebaseStudent, deleteFirebaseStudent } from '../lib/firebase';
 import { Cloud, CloudOff, Loader2, Download, Printer, Image } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import html2canvas from 'html2canvas';
+
 import { toPng } from 'html-to-image';
 
 
@@ -73,6 +85,53 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
     }
   }, [selectedGrade, selectedClassNum, isPinned]);
 
+  // Class Appearance state
+  const [classAppearances, setClassAppearances] = useState<Record<string, { color: string, icon: string }>>(() => {
+    try {
+      const saved = localStorage.getItem('school_class_appearances');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return {};
+  });
+  const [isAppearanceModalOpen, setIsAppearanceModalOpen] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('school_class_appearances', JSON.stringify(classAppearances));
+  }, [classAppearances]);
+
+  const classKey = `${selectedGrade}_${selectedClassNum}`;
+  const currentAppearance = classAppearances[classKey] || { color: 'bg-slate-100 text-slate-800', icon: 'FileText' };
+
+  // Helper to render icon
+  const renderIcon = (iconName: string, className: string = "w-4 h-4") => {
+    switch(iconName) {
+      case 'Star': return <Star className={className} />;
+      case 'Heart': return <Heart className={className} />;
+      case 'Target': return <Target className={className} />;
+      case 'Flag': return <Flag className={className} />;
+      case 'Book': return <Book className={className} />;
+      case 'Award': return <Award className={className} />;
+      case 'Sparkles': return <Sparkles className={className} />;
+      case 'Smile': return <Smile className={className} />;
+      default: return <FileText className={className} />;
+    }
+  };
+
+  const appearanceColors = [
+    { id: 'bg-slate-100 text-slate-800 border-slate-200', label: 'رمادي' },
+    { id: 'bg-blue-100 text-blue-800 border-blue-200', label: 'أزرق' },
+    { id: 'bg-emerald-100 text-emerald-800 border-emerald-200', label: 'أخضر' },
+    { id: 'bg-amber-100 text-amber-800 border-amber-200', label: 'برتقالي' },
+    { id: 'bg-rose-100 text-rose-800 border-rose-200', label: 'أحمر' },
+    { id: 'bg-purple-100 text-purple-800 border-purple-200', label: 'بنفسجي' },
+    { id: 'bg-pink-100 text-pink-800 border-pink-200', label: 'وردي' },
+    { id: 'bg-teal-100 text-teal-800 border-teal-200', label: 'فيروزي' },
+  ];
+
+  const appearanceIcons = ['FileText', 'Star', 'Heart', 'Target', 'Flag', 'Book', 'Award', 'Sparkles', 'Smile'];
+
   // Students list state
   const [students, setStudents] = useState<Student[]>(() => {
     try {
@@ -97,12 +156,43 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showAllAssessments, setShowAllAssessments] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [religion, setReligion] = useState<'مسلم' | 'مسيحي'>('مسلم');
   const [status, setStatus] = useState<'مستجد' | 'باق'>('مستجد');
 
   // Delete Modal State
   const [studentToDelete, setStudentToDelete] = useState<{id: string, name: string} | null>(null);
+  const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
+  const [editStudentName, setEditStudentName] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isListeningAdd, setIsListeningAdd] = useState(false);
+  const [isListeningEdit, setIsListeningEdit] = useState(false);
+
+  const handleVoiceInput = (setter: (val: string) => void, setListening: (val: boolean) => void) => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setErrorMessage('متصفحك لا يدعم إدخال الصوت');
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ar-SA';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setter(transcript);
+    };
+    recognition.onerror = (event: any) => {
+      console.error(event.error);
+      setListening(false);
+    };
+    recognition.onend = () => setListening(false);
+    
+    recognition.start();
+  };
 
   // Save students roster to LocalStorage
   useEffect(() => {
@@ -163,19 +253,37 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
 
 
 
-  const assessmentsCount = 15;
+  const assessmentsToDisplay = useMemo(() => {
+    if (showAllAssessments) {
+      return Array.from({ length: 15 }, (_, i) => i + 1);
+    }
+    return MONTHS_DATA.find(m => m.id === selectedMonthId)?.assessments || [];
+  }, [showAllAssessments, selectedMonthId]);
 
   const handleExportExcel = () => {
     if (displayedStudents.length === 0) return;
     
     // Create header row
-    const headers = ['م', 'اسم الطالب', ...Array.from({ length: assessmentsCount }, (_, i) => `تقييم ${i + 1}`)];
+    const headers = ['م', 'اسم الطالب', ...assessmentsToDisplay.map(num => `تقييم ${num}`)];
     
     // Create data rows
     const rows = displayedStudents.map((s, idx) => {
       const rowData: any[] = [s.serialNumber, s.name];
-      for (let i = 1; i <= assessmentsCount; i++) {
-        const status = getAttendanceStatus(s.id, i);
+      for (const num of assessmentsToDisplay) {
+        const isHoliday = records.some(r => 
+          r.grade === selectedGrade && 
+          r.class_num.toString() === selectedClassNum && 
+          r.term_id === selectedTerm && 
+          r.assess_num === num && 
+          r.is_holiday
+        );
+        
+        if (isHoliday) {
+          rowData.push('مؤجل');
+          continue;
+        }
+
+        const status = getAttendanceStatus(s.id, num);
         let statusText = '-';
         if (status === 'present') statusText = 'حاضر';
         else if (status === 'absent') statusText = 'غائب';
@@ -201,7 +309,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
     
     const tableEl = document.getElementById('roster-table-container');
     if (!tableEl) {
-      alert("تعذر العثور على الجدول");
+      setErrorMessage("تعذر العثور على الجدول");
       return;
     }
 
@@ -260,25 +368,20 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
       // wait for next tick to ensure styles are applied
       await new Promise(resolve => setTimeout(resolve, 150));
 
-      const canvas = await html2canvas(wrapper, {
+      const dataUrl = await toPng(wrapper, {
         backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        windowWidth: wrapper.scrollWidth + 50,
-        windowHeight: wrapper.scrollHeight + 50
+        pixelRatio: 2,
+        skipFonts: false,
       });
       
       document.body.removeChild(wrapper);
-
-      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = `سجل_الطلاب_الصف_${selectedGrade}_فصل_${selectedClassNum}.png`;
       link.href = dataUrl;
       link.click();
     } catch (e) {
       console.error(e);
-      alert("حدث خطأ أثناء تصدير الصورة");
+      setErrorMessage("حدث خطأ أثناء تصدير الصورة");
     }
   };
 
@@ -287,9 +390,18 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   const handleSaveStudent = async (addNext: boolean) => {
     if (!newStudentName.trim() || !selectedGrade || !selectedClassNum) return;
 
+    const nameToSave = newStudentName.trim();
+    
+    // Check if student exists in any class
+    const existingStudent = students.find(s => s.name === nameToSave);
+    if (existingStudent) {
+      setErrorMessage(`الطالب "${nameToSave}" مسجل بالفعل في الصف ${existingStudent.grade} - فصل ${existingStudent.class_num}`);
+      return;
+    }
+
     const newStudent: Student = {
       id: crypto.randomUUID(),
-      name: newStudentName.trim(),
+      name: nameToSave,
       grade: selectedGrade,
       class_num: Number(selectedClassNum),
       religion,
@@ -316,6 +428,39 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
 
   const handleDeleteStudent = (id: string, name: string) => {
     setStudentToDelete({ id, name });
+  };
+
+  const handleEditStudent = (student: Student) => {
+    setStudentToEdit(student);
+    setEditStudentName(student.name);
+  };
+
+  const handleUpdateStudent = async () => {
+    if (!studentToEdit || !editStudentName.trim()) return;
+
+    const nameToUpdate = editStudentName.trim();
+    
+    const existingStudent = students.find(s => s.name === nameToUpdate && s.id !== studentToEdit.id);
+    if (existingStudent) {
+      setErrorMessage(`الطالب "${nameToUpdate}" مسجل بالفعل في الصف ${existingStudent.grade} - فصل ${existingStudent.class_num}`);
+      return;
+    }
+
+    const updatedStudent = { ...studentToEdit, name: nameToUpdate };
+
+    setStudents(prev => prev.map(s => s.id === studentToEdit.id ? updatedStudent : s));
+    setStudentToEdit(null);
+    setEditStudentName('');
+
+    if (isFirebaseConnected) {
+      setSyncStatus('syncing');
+      try {
+        const success = await saveFirebaseStudent(updatedStudent, teacherId);
+        setSyncStatus(success ? 'idle' : 'error');
+      } catch {
+        setSyncStatus('error');
+      }
+    }
   };
 
   const confirmDeleteStudent = () => {
@@ -411,6 +556,25 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
 
 
   const renderAttendanceButton = (studentId: string, studentName: string, assessNum: number) => {
+    // Check if this assessment is a holiday for this class
+    const isHoliday = records.some(r => 
+      r.grade === selectedGrade && 
+      r.class_num.toString() === selectedClassNum && 
+      r.term_id === selectedTerm && 
+      r.assess_num === assessNum && 
+      r.is_holiday
+    );
+
+    if (isHoliday) {
+      return (
+        <div 
+          className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-50 border border-rose-200 text-rose-400 mx-auto cursor-help"
+          title="تأجيل التقييم"
+        >
+          <span className="text-[9px] font-black leading-none">مؤجل</span>
+        </div>
+      );
+    }
 
     const status = getAttendanceStatus(studentId, assessNum);
     
@@ -578,24 +742,31 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
             </div>
           </div>
           
-          {/* Pin Checkbox */}
-          <div className="flex items-center gap-1.5 col-span-2 md:col-span-2">
-            <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors">
+          {/* Pin & Show All Checkboxes */}
+          <div className="flex items-center gap-4 col-span-2 md:col-span-2">
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors shrink-0">
               <input 
                 type="checkbox" 
                 checked={isPinned}
                 onChange={handlePinChange}
                 className="w-3.5 h-3.5 rounded text-[#0284c7] focus:ring-[#0284c7] border-slate-300"
               />
-              تثبيت الفصل
+              تثبيت
+            </label>
+            
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors shrink-0">
+              <input 
+                type="checkbox" 
+                checked={showAllAssessments}
+                onChange={(e) => setShowAllAssessments(e.target.checked)}
+                className="w-3.5 h-3.5 rounded text-[#0284c7] focus:ring-[#0284c7] border-slate-300"
+              />
+              كل التقييمات
             </label>
             {classStudents.length > 0 && (
               <button
                 onClick={() => {
-                  if(window.confirm('هل أنت متأكد من حذف جميع طلاب هذا الفصل؟')) {
-                    setStudents(prev => prev.filter(s => !(s.grade === selectedGrade && s.class_num === selectedClassNum)));
-                    setAttendance(prev => prev.filter(a => !(a.grade === selectedGrade && a.class_num === selectedClassNum)));
-                  }
+                  setErrorMessage('هل أنت متأكد من حذف جميع طلاب هذا الفصل؟|DELETE_ALL');
                 }}
                 className="ml-auto bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-bold px-2 py-1 rounded-lg text-[10px] flex items-center gap-1 transition-colors"
               >
@@ -606,6 +777,25 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
         </div>
       </div>
 
+      {/* Selected Class Banner */}
+      {selectedGrade && selectedClassNum && (
+        <div className={`mt-4 mb-2 p-3 rounded-xl flex items-center justify-between border ${currentAppearance.color}`}>
+          <div className="flex items-center gap-2">
+            {renderIcon(currentAppearance.icon, "w-5 h-5")}
+            <h3 className="font-bold text-sm">
+              الصف {selectedGrade} - فصل {selectedClassNum}
+            </h3>
+          </div>
+          <button
+            onClick={() => setIsAppearanceModalOpen(true)}
+            className="p-1.5 hover:bg-white/50 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold"
+          >
+            <Palette className="w-4 h-4" />
+            تخصيص
+          </button>
+        </div>
+      )}
+
       {/* Table Container - Compact for minimal scrolling */}
       <div id="roster-table-container" className="mt-2 rounded-lg overflow-hidden border border-slate-200 shadow-sm overflow-x-auto w-full max-h-[70vh] overflow-y-auto">
         <table className="w-full text-right border-separate border-spacing-0 whitespace-nowrap">
@@ -614,7 +804,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
               <th className="p-3 min-w-[50px] max-w-[50px] w-[50px] text-center sticky right-0 bg-[#1e3a8a] z-20 border-b border-l border-slate-700 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">م</th>
               <th className="p-2 min-w-[90px] max-w-[90px] w-[90px] sticky right-[50px] bg-[#1e3a8a] z-20 border-b border-l border-slate-700 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">الاسم</th>
               
-              {Array.from({ length: assessmentsCount }, (_, i) => i + 1).map(num => (
+              {assessmentsToDisplay.map(num => (
                 <th key={num} className="p-3 text-center w-8 border-b border-l border-slate-700 whitespace-nowrap px-1"><span className="text-slate-300 text-[10px] block mb-0.5">س</span>{num}</th>
               ))}
               <th className="p-3 text-center w-14 border-b border-r border-slate-700">تحكم</th>
@@ -634,25 +824,34 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
                     </div>
                   </td>
 
-                  {Array.from({ length: assessmentsCount }, (_, i) => i + 1).map(num => (
+                  {assessmentsToDisplay.map(num => (
                     <td key={num} className="p-1.5 border-b border-l border-slate-200">
                       {renderAttendanceButton(student.id, student.name, num)}
                     </td>
                   ))}
                   <td className="p-3 text-center border-b border-r border-slate-200">
-                    <button
-                      onClick={() => handleDeleteStudent(student.id, student.name)}
-                      className="text-slate-400 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50 transition-colors inline-block"
-                      title="حذف"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => handleEditStudent(student)}
+                        className="text-slate-400 hover:text-teal-600 p-1.5 rounded-md hover:bg-teal-50 transition-colors inline-block"
+                        title="تعديل"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStudent(student.id, student.name)}
+                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50 transition-colors inline-block"
+                        title="حذف"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={assessmentsCount + 4} className="p-8 text-center text-slate-400">
+                <td colSpan={assessmentsToDisplay.length + 4} className="p-8 text-center text-slate-400">
                   لا يوجد طلاب مسجلين في هذا الفصل
                 </td>
               </tr>
@@ -668,14 +867,25 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
             <h2 className="text-center text-xl font-black text-slate-900 mb-6">تسجيل طالب</h2>
             <div className="space-y-5">
               {/* Name Input */}
-              <input
-                type="text"
-                placeholder="الاسم رباعي"
-                value={newStudentName}
-                onChange={(e) => setNewStudentName(e.target.value)}
-                className="w-full text-center bg-slate-50 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:border-transparent placeholder-slate-400 transition-all"
-                autoFocus
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="الاسم رباعي"
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  className="w-full pr-10 pl-10 text-center bg-slate-50 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:border-transparent placeholder-slate-400 transition-all"
+                  autoFocus
+                />
+                <button
+                  onClick={() => handleVoiceInput(setNewStudentName, setIsListeningAdd)}
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors ${
+                    isListeningAdd ? 'bg-rose-100 text-rose-600 animate-pulse' : 'text-slate-400 hover:text-[#0284c7] hover:bg-slate-100'
+                  }`}
+                  title="إدخال بالصوت"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+              </div>
 
               {/* Toggles Row */}
               <div className="flex gap-3">
@@ -747,6 +957,94 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
           </div>
         </div>
       )}
+      {/* Edit Student Modal */}
+      {studentToEdit && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 relative animate-in fade-in zoom-in duration-200 shadow-xl">
+            <h2 className="text-center text-xl font-black text-slate-900 mb-6">تعديل اسم الطالب</h2>
+            <div className="space-y-5">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="الاسم رباعي"
+                  value={editStudentName}
+                  onChange={(e) => setEditStudentName(e.target.value)}
+                  className="w-full pr-10 pl-10 text-center bg-slate-50 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                  autoFocus
+                />
+                <button
+                  onClick={() => handleVoiceInput(setEditStudentName, setIsListeningEdit)}
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors ${
+                    isListeningEdit ? 'bg-rose-100 text-rose-600 animate-pulse' : 'text-slate-400 hover:text-teal-600 hover:bg-slate-100'
+                  }`}
+                  title="إدخال بالصوت"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={handleUpdateStudent}
+                  className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm"
+                >
+                  حفظ التعديل
+                </button>
+                <button
+                  onClick={() => {
+                    setStudentToEdit(null);
+                    setEditStudentName('');
+                  }}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error/Alert Modal */}
+      {errorMessage && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 relative animate-in fade-in zoom-in duration-200 shadow-xl">
+            <h2 className="text-center text-xl font-black text-rose-600 mb-2">تنبيه</h2>
+            <p className="text-center text-slate-600 font-bold mb-6">
+              {errorMessage.split('|')[0]}
+            </p>
+            <div className="flex gap-3">
+              {errorMessage.includes('|DELETE_ALL') ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setStudents(prev => prev.filter(s => !(s.grade === selectedGrade && s.class_num === selectedClassNum)));
+                      setAttendance(prev => prev.filter(a => !(a.grade === selectedGrade && a.class_num === selectedClassNum)));
+                      setErrorMessage(null);
+                    }}
+                    className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm"
+                  >
+                    نعم، احذف الكل
+                  </button>
+                  <button
+                    onClick={() => setErrorMessage(null)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm transition-colors"
+                  >
+                    إلغاء
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setErrorMessage(null)}
+                  className="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm"
+                >
+                  حسناً
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {studentToDelete && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
@@ -767,6 +1065,65 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm transition-colors"
               >
                 إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Class Appearance Modal */}
+      {isAppearanceModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-800">تخصيص مظهر الفصل</h3>
+              <button onClick={() => setIsAppearanceModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-3">اختر الأيقونة</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {appearanceIcons.map(iconName => (
+                    <button
+                      key={iconName}
+                      onClick={() => setClassAppearances(prev => ({ ...prev, [classKey]: { ...currentAppearance, icon: iconName } }))}
+                      className={`p-3 rounded-xl flex items-center justify-center transition-all ${
+                        currentAppearance.icon === iconName 
+                          ? 'bg-slate-800 text-white shadow-md' 
+                          : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                      }`}
+                    >
+                      {renderIcon(iconName, "w-5 h-5")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-3">اختر اللون</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {appearanceColors.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => setClassAppearances(prev => ({ ...prev, [classKey]: { ...currentAppearance, color: c.id } }))}
+                      className={`p-3 rounded-xl text-center text-xs font-bold transition-all border ${c.id} ${
+                        currentAppearance.color === c.id ? 'ring-2 ring-slate-800 ring-offset-2' : ''
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsAppearanceModalOpen(false)}
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition-colors"
+              >
+                حفظ التغييرات
               </button>
             </div>
           </div>

@@ -1,6 +1,6 @@
 export type TermId = 'term1' | 'term2';
 
-export type AppTab = 'home' | 'assessments' | 'students' | 'stats';
+export type AppTab = 'home' | 'assessments' | 'students' | 'stats' | 'reports' | 'search' | 'admin';
 
 export type AttendanceStatus = 'present' | 'absent' | 'excused';
 
@@ -41,6 +41,12 @@ export interface TeacherProfile {
   subject: string;
   school: string;
   phone?: string;
+  supervisorCode?: string;
+  supervisorPhone?: string;
+  principalPhone?: string;
+  deputyPhone?: string;
+  officialHolidays?: string[];
+  subjectIcon?: string;
 }
 
 export interface AssessmentRecord {
@@ -58,6 +64,8 @@ export interface AssessmentRecord {
   timing_status?: 'normal' | 'exceptional';
   timing_period?: 'start' | 'mid' | 'end';
   model_form?: 'أ' | 'ب' | 'ج' | 'عشوائي';
+  is_holiday?: boolean;
+  holiday_desc?: string;
 }
 
 export interface TimingCheckResult {

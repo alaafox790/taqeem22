@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, AlertTriangle, Save, Sparkles, CheckCircle2, Layers, BookOpen, Clock, FileText } from 'lucide-react';
+import { X, Calendar, AlertTriangle, Save, Sparkles, CheckCircle2, Layers, BookOpen, Clock, FileText, Mic, MicOff, Loader2 } from 'lucide-react';
 import { MonthInfo, AssessmentRecord, TermId } from '../types';
 import { GRADES, CLASSES_COUNT, getFormModel, getFormDescription } from '../lib/constants';
 import { validateAssessmentTiming } from '../lib/validation';
@@ -65,6 +65,63 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
     return firstDay;
   });
   const [notes, setNotes] = useState<string>('');
+  const [isHoliday, setIsHoliday] = useState<boolean>(false);
+  const [holidayDesc, setHolidayDesc] = useState<string>('');
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+
+  const handleVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSpeechError('عذراً، متصفحك لا يدعم تسجيل الصوت.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ar-SA';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setSpeechError(null);
+    };
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+      if (finalTranscript) {
+        setNotes(prev => prev ? prev + ' ' + finalTranscript : finalTranscript);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error', event.error);
+      setIsListening(false);
+      if (event.error !== 'no-speech') {
+        setSpeechError('حدث خطأ أثناء التسجيل. حاول مرة أخرى.');
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    if (isListening) {
+      recognition.stop();
+    } else {
+      try {
+        recognition.start();
+      } catch (e) {
+        setIsListening(false);
+        setSpeechError('تعذر بدء التسجيل.');
+      }
+    }
+  };
   const [isRandomDistribution, setIsRandomDistribution] = useState<boolean>(false);
   
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -104,6 +161,18 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
       setValidationError('يرجى تحديد تاريخ التقييم.');
       return;
     }
+    
+    // Friday validation
+    const dateObj = new Date(assessDate);
+    if (!isHoliday && dateObj.getDay() === 5) { // 5 is Friday
+      setValidationError('لا يمكن تسجيل تقييم يوم الجمعة. يرجى تفعيل خيار تأجيل التقييم.');
+      return;
+    }
+
+    if (isHoliday && !holidayDesc) {
+      setValidationError('يرجى تحديد سبب تأجيل التقييم.');
+      return;
+    }
 
     const partialRecord: Partial<AssessmentRecord> = {
       teacher_id: teacherId,
@@ -118,6 +187,8 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
       timing_status: timingResult.isExceptional ? 'exceptional' : 'normal',
       timing_period: timingResult.period,
       model_form: isRandomDistribution ? 'عشوائي' : modelForm,
+      is_holiday: isHoliday,
+      holiday_desc: isHoliday ? holidayDesc : undefined
     };
 
     onSave(partialRecord, timingResult.isExceptional);
@@ -223,15 +294,63 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
             />
           </div>
 
+          {/* Holiday/Absence Section */}
+          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isHoliday}
+                onChange={(e) => {
+                  setIsHoliday(e.target.checked);
+                  if (!e.target.checked) setHolidayDesc('');
+                }}
+                className="w-4 h-4 rounded text-rose-500 focus:ring-rose-500 border-slate-300"
+              />
+              <span className="text-sm font-bold text-slate-700">تأجيل التقييم بسبب</span>
+            </label>
+            
+            {isHoliday && (
+              <div className="pl-6 animate-fadeIn">
+                <select
+                  value={holidayDesc}
+                  onChange={(e) => setHolidayDesc(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:border-rose-300"
+                  required={isHoliday}
+                >
+                  <option value="" disabled>اختر السبب</option>
+                  <option value="عطلة رسمية">عطلة رسمية</option>
+                  <option value="إجازة الجمعة / السبت">إجازة الجمعة / السبت</option>
+                  <option value="غياب معلم">غياب معلم</option>
+                  <option value="أخرى">أخرى</option>
+                </select>
+              </div>
+            )}
+          </div>
+
           {/* Notes Field */}
           <div>
-            <textarea
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="ملاحظات (اختياري)..."
-              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-cyan-500 text-sm font-medium text-slate-800 bg-white resize-none"
-            />
+            <div className="relative">
+              <textarea
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="ملاحظات (اختياري)..."
+                className="w-full px-3 py-2.5 pl-12 rounded-lg border border-slate-200 focus:outline-none focus:border-cyan-500 text-sm font-medium text-slate-800 bg-white resize-none"
+              />
+              <button
+                type="button"
+                onClick={handleVoiceInput}
+                className={`absolute left-2 bottom-2 p-2 rounded-full transition-all ${
+                  isListening 
+                    ? 'bg-rose-100 text-rose-600 animate-pulse' 
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700'
+                }`}
+                title="تسجيل صوتي"
+              >
+                {isListening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+              </button>
+            </div>
+            {speechError && <p className="text-xs text-rose-500 font-bold mt-1 px-1">{speechError}</p>}
           </div>
 
           {/* Actions Footer */}

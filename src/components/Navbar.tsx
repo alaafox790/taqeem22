@@ -4,13 +4,18 @@ import {
   Database,
   GraduationCap,
   Settings,
+  ScrollText,
   
   FileText,
   CheckCircle2,
   Users,
   BarChart3,
   LayoutGrid,
-  Home
+  Home,
+  Search,
+  Shield,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { TeacherProfile, AppTab } from '../types';
 
@@ -63,6 +68,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </div>
 
+            {/* Mobile Connection Status Indicator */}
+            <div 
+              className={`flex md:hidden items-center justify-center w-8 h-8 rounded-lg border transition-colors ${
+                isFirebaseConnected 
+                  ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                  : 'bg-rose-50 text-rose-600 border-rose-200'
+              }`}
+              title={isFirebaseConnected ? 'متصل بالإنترنت' : 'غير متصل - يتم الحفظ مؤقتاً'}
+            >
+              {isFirebaseConnected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+            </div>
+
             {/* Teacher Info Button - Mobile & Desktop */}
             <button
               onClick={onOpenProfile}
@@ -72,6 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {teacher.name.charAt(0) || 'م'}
               </div>
               <span className="max-w-[80px] truncate">{teacher.name}</span>
+              <Settings className="w-3.5 h-3.5 text-slate-400" />
             </button>
           </div>
 
@@ -115,11 +133,46 @@ export const Navbar: React.FC<NavbarProps> = ({
               <BarChart3 className="w-3.5 h-3.5 text-indigo-600" />
               <span>الإحصائيات</span>
             </button>
+
+            {/* Tab 4: Reports */}
+            <button
+              onClick={() => onSelectTab('reports')}
+              className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                activeTab === 'reports'
+                  ? 'bg-white text-rose-800 shadow-xs border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ScrollText className="w-3.5 h-3.5 text-rose-600" />
+              <span>تقارير الطلاب</span>
+            </button>
           </div>
 
           {/* Left side: Teacher Profile & Status */}
           <div className="hidden md:flex items-center gap-2">
             
+            {/* Connection Status Indicator */}
+            <div 
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                isFirebaseConnected 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                  : 'bg-rose-50 text-rose-700 border-rose-200'
+              }`}
+              title={isFirebaseConnected ? 'متصل بالإنترنت' : 'غير متصل - يتم الحفظ مؤقتاً'}
+            >
+              {isFirebaseConnected ? (
+                <>
+                  <Wifi className="w-3.5 h-3.5" />
+                  <span className="hidden lg:inline">متصل</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-3.5 h-3.5" />
+                  <span className="hidden lg:inline">غير متصل</span>
+                </>
+              )}
+            </div>
+
             {/* Teacher Info Pill */}
             <button
               onClick={onOpenProfile}

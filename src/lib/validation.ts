@@ -74,3 +74,25 @@ export function isValidAcademicYear(yearStr: string): boolean {
   const regex = /^\d{4}\/\d{4}$/;
   return regex.test(yearStr.trim());
 }
+
+/**
+ * Calculates adjusted due date by pushing the due date forward for each official holiday
+ */
+export function getAdjustedDueDate(year: number, month: number, originalDueDate: number, officialHolidays: string[]): number {
+  if (!officialHolidays || officialHolidays.length === 0) return originalDueDate;
+  
+  const holidaysInMonth = officialHolidays
+    .map(d => new Date(d))
+    .filter(d => d.getFullYear() === year && d.getMonth() + 1 === month)
+    .map(d => d.getDate())
+    .sort((a, b) => a - b);
+    
+  let adjustedDueDate = originalDueDate;
+  for (const hDay of holidaysInMonth) {
+    if (hDay <= adjustedDueDate) {
+      adjustedDueDate++;
+    }
+  }
+  
+  return adjustedDueDate;
+}

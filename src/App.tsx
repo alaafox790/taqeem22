@@ -2,8 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { ControlBar } from './components/ControlBar';
 import { AssessmentGrid } from './components/AssessmentGrid';
+import { AssessmentSearch } from './components/AssessmentSearch';
+import { TermProgress } from './components/TermProgress';
+
+
 import { ClassRosterManager } from './components/ClassRosterManager';
 import { ClassStats } from './components/ClassStats';
+import { LateAssessments } from './components/LateAssessments';
+import { AdminDashboard } from './components/AdminDashboard';
+import { StudentReportsScreen } from './components/StudentReportsScreen';
 import { AssessmentModal } from './components/AssessmentModal';
 import { DuplicateConfirmModal } from './components/DuplicateConfirmModal';
 import { TeacherProfileModal } from './components/TeacherProfileModal';
@@ -13,6 +20,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { HomeScreen } from './components/HomeScreen';
 
 import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab } from './types';
+import { getAdjustedDueDate } from './lib/validation';
 import { DEFAULT_TEACHER, DEFAULT_ACADEMIC_YEAR, MONTHS_DATA } from './lib/constants';
 import {
   fetchFirebaseRecords,
@@ -21,6 +29,7 @@ import {
   testFirebaseConnection,
   fetchFirebaseAttendance,
   fetchFirebaseStudents,
+  saveFirebaseTeacher,
 } from './lib/firebase';
 
 const AUTH_STORAGE_KEY = 'school_assessments_auth_v1';
@@ -123,11 +132,6 @@ export default function App() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
   // Test Firebase on startup
-  useEffect(() => {
-    testFirebaseConnection();
-  }, []);
-
-  // Load records from Firebase
   const loadData = useCallback(async () => {
     try {
       const firebaseData = await fetchFirebaseRecords(teacher.id);
@@ -140,15 +144,42 @@ export default function App() {
 
     setIsFirebaseConnected(true);
   }, [teacher.id]);
+  useEffect(() => {
+    testFirebaseConnection();
+    setIsFirebaseConnected(navigator.onLine);
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsFirebaseConnected(true);
+      if (isAuthenticated) {
+        loadData();
+      }
+    };
+    const handleOffline = () => setIsFirebaseConnected(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [isAuthenticated, loadData]);
+
+  // Load records from Firebase
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   // Handler: Update teacher profile
-  const handleSaveTeacher = (updated: TeacherProfile) => {
+  const handleSaveTeacher = async (updated: TeacherProfile) => {
     setTeacher(updated);
     localStorage.setItem(TEACHER_STORAGE_KEY, JSON.stringify(updated));
+    if (isFirebaseConnected) {
+      await saveFirebaseTeacher(updated);
+    }
     showToast('success', 'تم تحديث البيانات', 'تم حفظ ملف المعلم بنجاح.');
   };
 
@@ -253,11 +284,58 @@ export default function App() {
 
   // Auto-Reminder for upcoming assessments (Toast & Local Push Notification)
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const checkAndShowReminders = async () => {
       const lastReminderDate = localStorage.getItem('last_assessment_reminder_date');
-      const today = new Date().toDateString();
+      const todayDate = new Date();
+      const todayStr = todayDate.toDateString();
 
-      if (lastReminderDate === today) return; // Already shown today
+      if (lastReminderDate === todayStr) return; // Already shown today
+
+      // Calculate upcoming/overdue assessments for current month
+      const currentYear = todayDate.getFullYear();
+      const currentMonthNum = todayDate.getMonth() + 1;
+      const currentDay = todayDate.getDate();
+
+      const currentMonthInfo = MONTHS_DATA.find(m => m.monthNumber === currentMonthNum);
+      
+      let upcomingOrOverdue = null;
+
+      if (currentMonthInfo && currentMonthInfo.assessments.length > 0) {
+        const count = currentMonthInfo.assessments.length;
+        const daysInMonth = new Date(currentYear, currentMonthNum, 0).getDate();
+        const periodLength = daysInMonth / count;
+
+        for (let i = 0; i < count; i++) {
+          const assessNum = currentMonthInfo.assessments[i];
+          const originalDueDate = Math.round(periodLength * (i + 1));
+          const dueDateDay = getAdjustedDueDate(currentYear, currentMonthNum, originalDueDate, teacher.officialHolidays || []);
+          const daysLeft = dueDateDay - currentDay;
+
+          // Find if this assessment has been recorded for ANY class in the current term/month
+          const hasRecords = records.some(r => r.month_id === currentMonthInfo.id && r.assess_num === assessNum);
+
+          if (!hasRecords) {
+            if (daysLeft < 0) {
+              upcomingOrOverdue = `التقييم ${assessNum} متأخر (كان مستحقاً يوم ${dueDateDay})`;
+              break;
+            } else if (daysLeft <= 3) {
+              upcomingOrOverdue = `التقييم ${assessNum} مستحق قريباً (يوم ${dueDateDay})`;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!upcomingOrOverdue) {
+        // No urgent reminders today, mark as checked so we don't keep polling unnecessarily
+        // Only set if we actually have records loaded, so we don't accidentally silence it if records took long to load
+        if (records.length > 0) {
+          localStorage.setItem('last_assessment_reminder_date', todayStr);
+        }
+        return;
+      }
 
       // Request browser notification permission if not determined
       if (window.Notification && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
@@ -268,26 +346,28 @@ export default function App() {
         }
       }
 
+      const message = `🔔 تنبيه استباقي: ${upcomingOrOverdue}. يرجى إنجازه في أقرب وقت.`;
+
       // Show in-app Toast
       setToast({
         type: 'info',
-        message: '🔔 تذكير: لديك تقييمات قادمة يجب إنجازها خلال الـ 48 ساعة القادمة للحفاظ على مؤشر الالتزام.',
+        message: message,
       });
 
       // Show Browser Push Notification
       if (window.Notification && Notification.permission === 'granted') {
         new Notification('سجل التقييمات المدرسية', {
-          body: 'تذكير: لديك تقييمات قادمة يرجى إنجازها خلال الـ 48 ساعة القادمة للفصول غير المنجزة.',
-          icon: 'https://cdn-icons-png.flaticon.com/512/3234/3234972.png', // Fallback generic icon
+          body: message,
+          icon: 'https://cdn-icons-png.flaticon.com/512/3234/3234972.png',
         });
       }
 
-      localStorage.setItem('last_assessment_reminder_date', today);
+      localStorage.setItem('last_assessment_reminder_date', todayStr);
     };
 
-    const timer = setTimeout(checkAndShowReminders, 3500);
+    const timer = setTimeout(checkAndShowReminders, 4000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAuthenticated, records]);
 
   const handleLogin = (phone: string) => {
     setIsAuthenticated(true);
@@ -319,16 +399,37 @@ export default function App() {
       )}
 
       {/* Main Screen Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pt-3 sm:pt-6 space-y-3 sm:space-y-6">
         
         {/* HOME SCREEN */}
         {activeTab === 'home' && (
-          <HomeScreen onNavigate={setActiveTab} />
+          <HomeScreen 
+            onNavigate={setActiveTab} 
+            teacher={teacher} 
+            onOpenProfile={() => setIsProfileOpen(true)}
+            records={records}
+            selectedTerm={selectedTerm}
+            academicYear={academicYear}
+            onOpenAssessment={(month, num, term) => {
+              setSelectedTerm(term);
+              setSelectedMonth(month);
+              setActiveAssessNum(num);
+              setActiveTab('assessments');
+            }}
+          />
         )}
 
         {/* SCREEN 1: التقييمات (Assessments View) */}
         {activeTab === 'assessments' && (
           <div className="space-y-6 animate-fadeIn">
+            <div className="max-w-4xl mx-auto">
+              <TermProgress
+                selectedTerm={selectedTerm}
+                academicYear={academicYear}
+                monthAssessmentCounts={monthAssessmentCounts}
+                records={records}
+              />
+            </div>
             <div className="max-w-4xl mx-auto shadow-sm rounded-xl">
               {/* Academic Year, Term & Month Selector Bar */}
               <ControlBar
@@ -349,6 +450,7 @@ export default function App() {
                 onSelectAssessment={(num) => setActiveAssessNum(num)}
                 academicYear={academicYear}
                 teacherId={teacher.id}
+                teacher={teacher}
               />
             </div>
 
@@ -374,11 +476,54 @@ export default function App() {
 
         {/* SCREEN 3: الإحصائيات (Stats View) */}
         {activeTab === 'stats' && (
-          <div className="animate-fadeIn">
+          <div className="animate-fadeIn space-y-6 pb-20">
             <ClassStats 
               records={records}
               selectedTerm={selectedTerm}
+              teacher={teacher}
             />
+            
+            <div className="flex justify-center w-full">
+              <div className="w-full max-w-2xl">
+                <LateAssessments 
+                  teacherId={teacher.id} 
+                  records={records} 
+                  selectedTerm={selectedTerm} 
+                  academicYear={academicYear} 
+                  onOpenAssessment={(month, num, term) => {
+                    setSelectedTerm(term);
+                    setSelectedMonth(month);
+                    setActiveAssessNum(num);
+                    setActiveTab('assessments');
+                  }} 
+                  officialHolidays={teacher.officialHolidays || []} 
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SCREEN 4: التقارير (Reports View) */}
+        {activeTab === 'reports' && (
+          <div className="animate-fadeIn">
+            <StudentReportsScreen 
+              records={records}
+              selectedTerm={selectedTerm}
+            />
+          </div>
+        )}
+
+        {/* SCREEN 5: البحث (Search View) */}
+        {activeTab === 'search' && (
+          <div className="animate-fadeIn">
+            <AssessmentSearch records={records} selectedTerm={selectedTerm} teacherId={teacher.id} />
+          </div>
+        )}
+        
+        {/* SCREEN 6: الإدارة المدرسية (Admin View) */}
+        {activeTab === 'admin' && (
+          <div className="animate-fadeIn">
+            <AdminDashboard onLogout={() => setActiveTab('home')} />
           </div>
         )}
       </main>
