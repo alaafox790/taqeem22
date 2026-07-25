@@ -24,9 +24,9 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   const [phone, setPhone] = useState(teacher.phone || '');
   const [subject, setSubject] = useState(teacher.subject);
   const [school, setSchool] = useState(teacher.school);
-  const [educationalStage, setEducationalStage] = useState(teacher.educationalStage || 'المرحلة الإعدادية');
+  const [educationalStage, setEducationalStage] = useState(teacher.educationalStage || 'المرحلة الابتدائية');
   const [classesTaught, setClassesTaught] = useState(teacher.classesTaught || '1/1، 1/2، 2/1، 3/1');
-  const [selectedGradeForClass, setSelectedGradeForClass] = useState<'1' | '2' | '3'>('1');
+  const [selectedGradeForClass, setSelectedGradeForClass] = useState<string>('1');
   const [selectedSectionForClass, setSelectedSectionForClass] = useState<string>('');
   const [subjectIcon, setSubjectIcon] = useState(teacher.subjectIcon || "Book");
   const [supervisorPhone, setSupervisorPhone] = useState(teacher.supervisorPhone || '');
@@ -44,7 +44,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
       setPhone(teacher.phone || '');
       setSubject(teacher.subject);
       setSchool(teacher.school);
-      setEducationalStage(teacher.educationalStage || 'المرحلة الإعدادية');
+      setEducationalStage(teacher.educationalStage || 'المرحلة الابتدائية');
       setClassesTaught(teacher.classesTaught || '1/1، 1/2، 2/1، 3/1');
       setSubjectIcon(teacher.subjectIcon || 'Book');
       setSupervisorPhone(teacher.supervisorPhone || '');
@@ -56,10 +56,41 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
     }
   }, [isOpen, teacher]);
 
-  // Class selection helpers (Grade 1-3, Section 1-15)
-  const getClassOptions = (grade: '1' | '2' | '3') => {
+  // Dynamic Grade & Class options based on stage
+  const getGradeOptionsForStage = (stage: string) => {
+    if (stage === 'المرحلة الابتدائية') {
+      return [
+        { id: '1', label: 'الصف الأول الابتدائي' },
+        { id: '2', label: 'الصف الثاني الابتدائي' },
+        { id: '3', label: 'الصف الثالث الابتدائي' },
+        { id: '4', label: 'الصف الرابع الابتدائي' },
+        { id: '5', label: 'الصف الخامس الابتدائي' },
+        { id: '6', label: 'الصف السادس الابتدائي' },
+      ];
+    } else if (stage === 'المرحلة الثانوية') {
+      return [
+        { id: '1', label: 'الصف الأول الثانوي' },
+        { id: '2', label: 'الصف الثاني الثانوي' },
+        { id: '3', label: 'الصف الثالث الثانوي' },
+      ];
+    } else {
+      return [
+        { id: '1', label: 'الصف الأول الإعدادي' },
+        { id: '2', label: 'الصف الثاني الإعدادي' },
+        { id: '3', label: 'الصف الثالث الإعدادي' },
+      ];
+    }
+  };
+
+  const getMaxClassesForStage = (stage: string) => {
+    if (stage === 'المرحلة الابتدائية') return 10;
+    return 15; // الاعدادية والثانوية
+  };
+
+  const getClassOptions = (grade: string, stage: string) => {
+    const max = getMaxClassesForStage(stage);
     const options: string[] = [];
-    for (let i = 1; i <= 15; i++) {
+    for (let i = 1; i <= max; i++) {
       options.push(`${grade}/${i}`);
     }
     return options;
@@ -533,11 +564,17 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">المرحلة التعليمية</label>
                 <select
                   value={educationalStage}
-                  onChange={(e) => setEducationalStage(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-bold text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
+                  onChange={(e) => {
+                    const stageVal = e.target.value;
+                    setEducationalStage(stageVal);
+                    setSelectedGradeForClass('1');
+                    setSelectedSectionForClass('');
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-bold text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50 cursor-pointer"
                 >
-                  <option value="المرحلة الإعدادية">المرحلة الإعدادية</option>
+                  <option value="">-- اختر المرحلة التعليمية --</option>
                   <option value="المرحلة الابتدائية">المرحلة الابتدائية</option>
+                  <option value="المرحلة الاعدادية">المرحلة الاعدادية</option>
                   <option value="المرحلة الثانوية">المرحلة الثانوية</option>
                 </select>
               </div>
@@ -567,21 +604,21 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                     <select
                       value={selectedGradeForClass}
                       onChange={(e) => {
-                        const g = e.target.value as '1' | '2' | '3';
+                        const g = e.target.value;
                         setSelectedGradeForClass(g);
                         setSelectedSectionForClass('');
                       }}
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 cursor-pointer"
                     >
-                      <option value="1">الصف الأول الإعدادي</option>
-                      <option value="2">الصف الثاني الإعدادي</option>
-                      <option value="3">الصف الثالث الإعدادي</option>
+                      {getGradeOptionsForStage(educationalStage).map((gOpt) => (
+                        <option key={gOpt.id} value={gOpt.id}>{gOpt.label}</option>
+                      ))}
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                      2. اختر الفصل (من {selectedGradeForClass}/1 حتى {selectedGradeForClass}/15)
+                      2. اختر الفصل (من {selectedGradeForClass}/1 حتى {selectedGradeForClass}/{getMaxClassesForStage(educationalStage)})
                     </label>
                     <select
                       value={selectedSectionForClass}
@@ -595,7 +632,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 cursor-pointer"
                     >
                       <option value="">-- اضغط لاختيار الفصل للربط --</option>
-                      {getClassOptions(selectedGradeForClass).map((clsOption) => (
+                      {getClassOptions(selectedGradeForClass, educationalStage).map((clsOption) => (
                         <option key={clsOption} value={clsOption}>
                           فصل {clsOption}
                         </option>

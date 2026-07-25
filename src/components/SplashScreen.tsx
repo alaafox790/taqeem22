@@ -69,7 +69,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete, showDism
                 تقييماتي
               </h1>
               <div className="mt-2 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#0f2b5c] to-[#059669] text-white text-xs sm:text-sm font-black shadow-md shadow-emerald-700/20">
-                <span>المرحلة الإعدادية</span>
+                <span>تطبيق تقييمات المعلم الذكي</span>
               </div>
             </motion.div>
 

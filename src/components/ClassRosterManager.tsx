@@ -22,11 +22,30 @@ import {
   BookOpen,
   Award,
   Sparkles,
-  Smile
+  Smile,
+  UserPlus,
+  Maximize2,
+  Minimize2,
+  Zap,
+  Cloud,
+  CloudOff,
+  Loader2,
+  Download,
+  Printer,
+  Image,
+  Eye,
+  EyeOff,
+  Users,
+  CheckCircle2,
+  User
 } from 'lucide-react';
 import { Student, TermId, StudentAttendance, AttendanceStatus, AssessmentRecord, StatusColors } from '../types';
 import { GRADES, CLASSES_COUNT, MONTHS_DATA } from '../lib/constants';
 import { DEFAULT_STATUS_COLORS } from '../lib/statusColors';
+import { saveFirebaseAttendance, saveFirebaseStudent, deleteFirebaseStudent, deleteFirebaseAttendance, deleteFirebaseAssessmentRecord } from '../lib/firebase';
+import * as XLSX from 'xlsx';
+import { toPng } from 'html-to-image';
+import { StudentProfileDashboard } from './StudentProfileDashboard';
 
 interface ClassRosterManagerProps {
   selectedTerm: TermId;
@@ -36,19 +55,14 @@ interface ClassRosterManagerProps {
   isFirebaseConnected?: boolean;
   onDeleteRecordsForClass?: (grade: string, classNum: number) => void;
   statusColors?: StatusColors;
+  onAddReminder?: (reminder: { title: string; description?: string; targetType: 'student' | 'class' | 'general'; targetName?: string; reminderDate: string }) => void;
 }
 
 const ROSTER_STORAGE_KEY = 'school_assessments_students_roster_v1';
 const ATTENDANCE_STORAGE_KEY = 'school_assessments_attendance_v1';
 
-import { saveFirebaseAttendance, saveFirebaseStudent, deleteFirebaseStudent, deleteFirebaseAttendance, deleteFirebaseAssessmentRecord } from '../lib/firebase';
-import { Cloud, CloudOff, Loader2, Download, Printer, Image } from 'lucide-react';
-import * as XLSX from 'xlsx';
 
-import { toPng } from 'html-to-image';
-
-
-export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selectedTerm, records, selectedMonthId, teacherId, isFirebaseConnected, onDeleteRecordsForClass, statusColors = DEFAULT_STATUS_COLORS }) => {
+export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selectedTerm, records, selectedMonthId, teacherId, isFirebaseConnected, onDeleteRecordsForClass, statusColors = DEFAULT_STATUS_COLORS, onAddReminder }) => {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
 
   // Search and Filter
@@ -100,6 +114,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
     return {};
   });
   const [isAppearanceModalOpen, setIsAppearanceModalOpen] = useState(false);
+  const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<Student | null>(null);
 
   useEffect(() => {
     localStorage.setItem('school_class_appearances', JSON.stringify(classAppearances));
@@ -158,8 +173,11 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
     return [];
   });
 
-  // Modal State
+  // Modal & Focus Mode State
+  const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showBatchActions, setShowBatchActions] = useState(false);
+  const [showModelDistribution, setShowModelDistribution] = useState(false);
   const [showAllAssessments, setShowAllAssessments] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [religion, setReligion] = useState<'مسلم' | 'مسيحي'>('مسلم');
@@ -172,6 +190,9 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isListeningAdd, setIsListeningAdd] = useState(false);
   const [isListeningEdit, setIsListeningEdit] = useState(false);
+
+  type ControlTab = 'students' | 'display' | 'tools';
+  const [activeControlTab, setActiveControlTab] = useState<ControlTab>('students');
 
   // Clear All Assessments Checkbox & Warning Modal State
   const [isClearAssessmentsChecked, setIsClearAssessmentsChecked] = useState(false);
@@ -750,7 +771,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
           className="w-6 h-6 rounded-md flex items-center justify-center bg-rose-50 border border-rose-200 text-rose-400 mx-auto cursor-help"
           title="تأجيل التقييم"
         >
-          <span className="text-[9px] font-black leading-none">مؤجل</span>
+          <span className="text-xs font-bold leading-none">مؤجل</span>
         </div>
       );
     }
@@ -758,7 +779,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
     const status = getAttendanceStatus(studentId, assessNum);
     
     let btnClass = "w-6 h-6 rounded-md flex items-center justify-center transition-all duration-300 shadow-sm mx-auto cursor-pointer border group-hover/btn:scale-110 group-hover/btn:-rotate-6 group-hover/btn:shadow-md active:scale-95";
-    let icon = <Minus className="w-3 h-3 text-slate-400" />;
+    let icon = <Minus className="w-3 h-3 text-slate-500" />;
     let customBtnStyle: React.CSSProperties = {};
 
     if (status === 'present') {
@@ -799,7 +820,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
         </button>
         {showModelsInTable && (
           <span 
-            className={`text-[10px] font-black px-1 py-0.5 rounded border text-center min-w-[18px] leading-none shadow-2xs select-none ${
+            className={`text-xs font-bold px-1 py-0.5 rounded border text-center min-w-[18px] leading-none shadow-2xs select-none ${
               assignedModel === 'أ' 
                 ? 'bg-blue-50 text-blue-700 border-blue-200' 
                 : assignedModel === 'ب' 
@@ -816,312 +837,360 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   };
 
   return (
-    <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 w-full max-w-full overflow-hidden animate-in fade-in">
-      {/* Compact Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          {/* Sync Status Indicator */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-50 border border-slate-100">
-            {syncStatus === 'syncing' ? (
-              <>
-                <Loader2 className="w-3 h-3 text-cyan-600 animate-spin" />
-                <span className="text-[10px] text-slate-500 font-medium">حفظ...</span>
-              </>
-            ) : syncStatus === 'error' ? (
-              <>
-                <CloudOff className="w-3 h-3 text-rose-500" />
-                <span className="text-[10px] text-rose-600 font-medium">خطأ</span>
-              </>
-            ) : isFirebaseConnected ? (
-              <>
-                <Cloud className="w-3 h-3 text-emerald-500" />
-                <span className="text-[10px] text-emerald-600 font-medium">متصل</span>
-              </>
-            ) : (
-              <>
-                <CloudOff className="w-3 h-3 text-slate-400" />
-                <span className="text-[10px] text-slate-500 font-medium">محلي</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Top Bar: Controls */}
-      <div className="flex flex-col gap-2 mb-2">
-        <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center w-full">
-          {/* Actions */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button 
-              onClick={handleExportImage}
-              className="bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors"
-              title="تصدير كصورة">
-              <Image className="w-3.5 h-3.5" /> صورة
-            </button>
-            <button 
-              onClick={handleExportExcel}
-              className="bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors"
-              title="تصدير إكسل">
-              <Download className="w-3.5 h-3.5" /> إكسل
-            </button>
-            <button
-              onClick={() => {
-                if (!selectedGrade || !selectedClassNum) {
-                  alert('يرجى اختيار الصف والفصل أولاً.');
-                  return;
-                }
-                setIsModalOpen(true);
-              }}
-              className="bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors"
-            >
-              طالب جديد +
-            </button>
-          </div>
-
-          <div className="flex-1 min-w-[150px] relative">
-            <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
-              <Search className="h-3.5 w-3.5 text-slate-400" />
+    <div className={
+      isFocusMode 
+        ? "fixed inset-0 z-50 bg-[#fafcff] text-slate-800 p-3 sm:p-5 overflow-y-auto flex flex-col w-full h-full animate-in fade-in zoom-in-95 duration-200" 
+        : "bg-white rounded-xl p-3 shadow-sm border border-slate-100 w-full max-w-full overflow-hidden animate-in fade-in"
+    }>
+      {/* Focus Mode Clean Minimal Header */}
+      {isFocusMode ? (
+        <div className="bg-white border border-sky-200/60 rounded-2xl p-3 mb-3 flex flex-wrap items-center justify-between gap-3 shadow-sm shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-3.5 w-3.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-sky-500"></span>
+            </span>
+            <div>
+              <span className="font-bold text-sm sm:text-base text-sky-700 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-sky-500 fill-sky-500" />
+                🎯 وضع التركيز - جدول رصد التقييمات
+              </span>
+              <p className="text-xs text-slate-500 font-medium hidden sm:block">
+                جدول الرصد المباشر فقط لتقليل التشتت أثناء إدخال درجات التقييم
+              </p>
             </div>
-            <input
-              type="text"
-              placeholder="ابحث بالاسم أو الرقم..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg focus:ring-1 focus:ring-teal-500 focus:border-transparent block pr-7 p-1.5 transition-all outline-none"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 left-2 flex items-center text-slate-400 hover:text-slate-600"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
           </div>
-          
-          <div className="relative shrink-0 w-[100px]">
-            <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
-              <Filter className="h-3.5 w-3.5 text-slate-400" />
-            </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as any)}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg focus:ring-1 focus:ring-teal-500 focus:border-transparent block pr-7 p-1.5 appearance-none outline-none"
-            >
-              <option value="all">الكل</option>
-              <option value="present">الحاضرين</option>
-              <option value="absent">الغائبين</option>
-              <option value="excused">المعذورين</option>
-            </select>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {/* Grade Selector */}
-          <div className="relative">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Quick Grade & Class Selector in Focus Mode */}
             <select
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg pl-2 pr-8 py-1.5 text-xs font-bold text-slate-800 focus:outline-none appearance-none text-right"
+              className="bg-slate-50 text-slate-700 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold outline-none cursor-pointer"
             >
               <option value="" disabled>الصف...</option>
               {GRADES.map((grade) => (
                 <option key={grade} value={grade}>الصف {grade}</option>
               ))}
             </select>
-            <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none">
-              <svg className="w-3 h-3 text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-            </div>
-          </div>
 
-          {/* Class Selector */}
-          <div className="relative">
             <select
               value={selectedClassNum}
               onChange={(e) => setSelectedClassNum(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-full bg-white border border-slate-200 rounded-lg pl-2 pr-8 py-1.5 text-xs font-bold text-slate-800 focus:outline-none appearance-none text-right"
+              className="bg-slate-50 text-slate-700 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold outline-none cursor-pointer"
             >
               <option value="" disabled>الفصل...</option>
               {Array.from({ length: CLASSES_COUNT }, (_, i) => i + 1).map((cNum) => (
                 <option key={cNum} value={cNum}>فصل {cNum}</option>
               ))}
             </select>
-            <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none">
-              <svg className="w-3 h-3 text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-            </div>
+
+            <button
+              onClick={() => setIsFocusMode(false)}
+              className="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+            >
+              <Minimize2 className="w-4 h-4" />
+              <span>إلغاء التركيز</span>
+            </button>
           </div>
-          
-          {/* Pin & Show All Checkboxes */}
-          <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 col-span-2 md:col-span-4 mt-1">
-            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700 hover:text-slate-900 transition-colors">
-                <input 
-                  type="checkbox" 
-                  checked={isPinned}
-                  onChange={handlePinChange}
-                  className="w-4 h-4 rounded text-[#0284c7] focus:ring-[#0284c7] border-slate-300"
-                />
-                تثبيت
-              </label>
-              
-              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700 hover:text-slate-900 transition-colors">
-                <input 
-                  type="checkbox" 
-                  checked={showAllAssessments}
-                  onChange={(e) => setShowAllAssessments(e.target.checked)}
-                  className="w-4 h-4 rounded text-[#0284c7] focus:ring-[#0284c7] border-slate-300"
-                />
-                كل التقييمات
-              </label>
-
-              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors">
-                <input 
-                  type="checkbox" 
-                  checked={isClearAssessmentsChecked}
-                  onChange={handleClearAssessmentsCheckbox}
-                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300"
-                />
-                إلغاء كل التقييمات
-              </label>
-            </div>
-
-            {classStudents.length > 0 && (
-              <button
-                onClick={() => {
-                  setErrorMessage('هل أنت متأكد من حذف جميع طلاب هذا الفصل؟|DELETE_ALL');
-                }}
-                className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold px-2.5 py-1 rounded-lg text-xs flex items-center gap-1 transition-colors ml-auto sm:ml-0"
+        </div>
+      ) : (
+        <>
+          {/* Top Bar: Organized Tab System */}
+          <div className="flex flex-col mb-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            {/* Tab Headers */}
+            <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-hide">
+              <button 
+                onClick={() => setActiveControlTab('students')}
+                className={`flex-1 sm:flex-none px-4 py-3 text-sm font-bold transition-all flex items-center justify-center gap-2 min-w-[120px] whitespace-nowrap ${activeControlTab === 'students' ? 'bg-sky-50 text-sky-800 border-b-2 border-sky-600' : 'text-slate-700 hover:bg-slate-50'}`}
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>حذف الفصل</span>
+                <Users className="w-4 h-4" /> الطلاب والفصل
               </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Selected Class Banner */}
-      {selectedGrade && selectedClassNum && (
-        <div className={`mt-4 mb-2 p-3 rounded-xl flex items-center justify-between border ${currentAppearance.color}`}>
-          <div className="flex items-center gap-2">
-            {renderIcon(currentAppearance.icon, "w-5 h-5")}
-            <h3 className="font-bold text-sm">
-              الصف {selectedGrade} - فصل {selectedClassNum}
-            </h3>
-          </div>
-          <button
-            onClick={() => setIsAppearanceModalOpen(true)}
-            className="p-1.5 hover:bg-white/50 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold"
-          >
-            <Palette className="w-4 h-4" />
-            تخصيص
-          </button>
-        </div>
-      )}
-
-      {/* Batch Actions Bar (حضور كل الطلاب / غياب كل الطلاب) */}
-      {selectedGrade && selectedClassNum && classStudents.length > 0 && (
-        <div className="my-2 p-3 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl shadow-sm border border-slate-700/80 space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="text-xs font-black text-amber-300">تسجيل تقييم جماعي:</span>
+              <button 
+                onClick={() => setActiveControlTab('display')}
+                className={`flex-1 sm:flex-none px-4 py-3 text-sm font-bold transition-all flex items-center justify-center gap-2 min-w-[120px] whitespace-nowrap ${activeControlTab === 'display' ? 'bg-violet-50 text-violet-800 border-b-2 border-violet-600' : 'text-slate-700 hover:bg-slate-50'}`}
+              >
+                <Eye className="w-4 h-4" /> العرض والتركيز
+              </button>
+              <button 
+                onClick={() => setActiveControlTab('tools')}
+                className={`flex-1 sm:flex-none px-4 py-3 text-sm font-bold transition-all flex items-center justify-center gap-2 min-w-[120px] whitespace-nowrap ${activeControlTab === 'tools' ? 'bg-amber-50 text-amber-900 border-b-2 border-amber-600' : 'text-slate-700 hover:bg-slate-50'}`}
+              >
+                <Sparkles className="w-4 h-4" /> أدوات متقدمة
+              </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              <div className="flex items-center gap-1.5 bg-slate-800/90 px-2.5 py-1 rounded-xl border border-slate-700 text-xs">
-                <span className="font-bold text-slate-300 whitespace-nowrap">التقييم:</span>
-                <select
-                  value={batchTargetAssessNum}
-                  onChange={(e) => setBatchTargetAssessNum(Number(e.target.value))}
-                  className="bg-slate-900 text-white font-black text-xs rounded-lg px-2 py-1 border border-slate-600 focus:outline-none cursor-pointer"
-                >
-                  {assessmentsToDisplay.map((num) => (
-                    <option key={num} value={num}>تقييم {num}</option>
-                  ))}
-                </select>
-              </div>
+            {/* Tab Content */}
+            <div className="p-3.5 sm:p-4">
+              {activeControlTab === 'students' && (
+                <div className="flex flex-col sm:flex-row items-end justify-between gap-4 animate-in fade-in duration-200">
+                  {classStudents.length > 0 ? (
+                    <button
+                      onClick={() => {
+                        setErrorMessage('هل أنت متأكد من حذف جميع طلاب هذا الفصل؟|DELETE_ALL');
+                      }}
+                      className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold px-4 py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 transition-colors w-full sm:w-auto cursor-pointer shrink-0"
+                    >
+                      <span>حذف الفصل</span>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <div className="hidden sm:block"></div>
+                  )}
 
-              <div className="flex items-center gap-2 grow sm:grow-0">
-                <button
-                  onClick={() => handleBatchAttendance('present')}
-                  style={{ backgroundColor: statusColors.present }}
-                  className="flex-1 sm:flex-initial hover:opacity-90 active:scale-95 text-white font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-white/20"
-                  title={`تسجيل حضور جميع الطلاب لتقييم ${batchTargetAssessNum}`}
-                >
-                  <Check className="w-4 h-4" />
-                  <span>حضور كل الطلاب</span>
-                </button>
+                  <div className="flex flex-col gap-3 w-full sm:w-auto">
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full justify-end">
+                      {/* Grade Selector */}
+                      <div className="relative shrink-0 flex-1 sm:flex-none sm:w-[130px]">
+                        <select
+                          value={selectedGrade}
+                          onChange={(e) => setSelectedGrade(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-2 pr-7 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-sky-500 appearance-none text-right cursor-pointer"
+                        >
+                          <option value="" disabled>اختر الصف...</option>
+                          {GRADES.map((grade) => (
+                            <option key={grade} value={grade}>الصف {grade}</option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none text-slate-500">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                      </div>
 
-                <button
-                  onClick={() => handleBatchAttendance('absent')}
-                  style={{ backgroundColor: statusColors.absent }}
-                  className="flex-1 sm:flex-initial hover:opacity-90 active:scale-95 text-white font-black text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-white/20"
-                  title={`تسجيل غياب جميع الطلاب لتقييم ${batchTargetAssessNum}`}
-                >
-                  <X className="w-4 h-4" />
-                  <span>غياب كل الطلاب</span>
-                </button>
-              </div>
+                      {/* Class Selector */}
+                      <div className="relative shrink-0 flex-1 sm:flex-none sm:w-[120px]">
+                        <select
+                          value={selectedClassNum}
+                          onChange={(e) => setSelectedClassNum(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-2 pr-7 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-sky-500 appearance-none text-right cursor-pointer"
+                        >
+                          <option value="" disabled>اختر الفصل...</option>
+                          {Array.from({ length: CLASSES_COUNT }, (_, i) => i + 1).map((cNum) => (
+                            <option key={cNum} value={cNum}>فصل {cNum}</option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none text-slate-500">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Add Student Button */}
+                    <button
+                      onClick={() => {
+                        if (!selectedGrade || !selectedClassNum) {
+                          alert('يرجى اختيار الصف والفصل أولاً.');
+                          return;
+                        }
+                        setIsModalOpen(true);
+                      }}
+                      className="bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold px-4 py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95 cursor-pointer w-full"
+                    >
+                      <span>إضافة طالب</span>
+                      <UserPlus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeControlTab === 'display' && (
+                <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 hover:text-slate-900 transition-colors select-none">
+                        <input 
+                          type="checkbox" 
+                          checked={isPinned}
+                          onChange={handlePinChange}
+                          className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500 border-slate-300 cursor-pointer"
+                        />
+                        <span>تثبيت الصف والفصل الحالي</span>
+                      </label>
+                      
+                      <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 hover:text-slate-900 transition-colors select-none">
+                        <input 
+                          type="checkbox" 
+                          checked={showAllAssessments}
+                          onChange={(e) => setShowAllAssessments(e.target.checked)}
+                          className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500 border-slate-300 cursor-pointer"
+                        />
+                        <span>إظهار جميع التقييمات في الجدول</span>
+                      </label>
+                    </div>
+
+                    <button 
+                      onClick={() => setIsFocusMode(!isFocusMode)}
+                      className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer active:scale-95 shrink-0"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>تفعيل وضع التركيز 🎯</span>
+                    </button>
+                  </div>
+
+                  {selectedGrade && selectedClassNum && (
+                    <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50/50 border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <Palette className="w-4 h-4 text-slate-500" />
+                        <span className="text-xs font-bold text-slate-700">مظهر الفصل:</span>
+                        <div className={`px-2 py-1 rounded text-xs font-bold border ${currentAppearance.color}`}>
+                          {renderIcon(currentAppearance.icon, "w-3.5 h-3.5 inline-block ml-1")}
+                          الصف {selectedGrade} - فصل {selectedClassNum}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setIsAppearanceModalOpen(true)}
+                        className="text-xs font-bold text-violet-600 hover:text-violet-700 cursor-pointer underline underline-offset-4"
+                      >
+                        تغيير المظهر
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeControlTab === 'tools' && (
+                <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+                  {/* Danger Zone */}
+                  <div className="bg-rose-50/50 p-3 rounded-lg border border-rose-200 flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={isClearAssessmentsChecked}
+                        onChange={handleClearAssessmentsCheckbox}
+                        className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-rose-300 cursor-pointer"
+                      />
+                      <span>إلغاء وتصفير كل التقييمات للطلاب (خطر)</span>
+                    </label>
+                  </div>
+
+                  {/* Batch Tools */}
+                  {selectedGrade && selectedClassNum && classStudents.length > 0 ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* Attendance Batch */}
+                      <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer select-none border-b border-slate-200 pb-2">
+                          <input
+                            type="checkbox"
+                            checked={showBatchActions}
+                            onChange={(e) => setShowBatchActions(e.target.checked)}
+                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                          />
+                          <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>أداة تسجيل التقييم الجماعي</span>
+                          </span>
+                        </label>
+                        
+                        {showBatchActions && (
+                          <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-500">رقم التقييم:</span>
+                              <select
+                                value={batchTargetAssessNum}
+                                onChange={(e) => setBatchTargetAssessNum(Number(e.target.value))}
+                                className="bg-white text-slate-800 font-bold text-xs rounded-lg px-2 py-1.5 border border-slate-300 focus:outline-none cursor-pointer flex-1"
+                              >
+                                {assessmentsToDisplay.map((num) => (
+                                  <option key={num} value={num}>تقييم {num}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <button
+                                onClick={() => handleBatchAttendance('present')}
+                                style={{ backgroundColor: statusColors.present }}
+                                className="flex-1 hover:opacity-90 active:scale-95 text-white font-bold text-xs sm:text-xs py-2 rounded-lg shadow-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                <Check className="w-3.5 h-3.5" /> حضور للكل
+                              </button>
+                              <button
+                                onClick={() => handleBatchAttendance('absent')}
+                                style={{ backgroundColor: statusColors.absent }}
+                                className="flex-1 hover:opacity-90 active:scale-95 text-white font-bold text-xs sm:text-xs py-2 rounded-lg shadow-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" /> غياب للكل
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Models Distribution Batch */}
+                      <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer select-none border-b border-slate-200 pb-2">
+                          <input
+                            type="checkbox"
+                            checked={showModelDistribution}
+                            onChange={(e) => setShowModelDistribution(e.target.checked)}
+                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                          />
+                          <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <BookOpen className="w-3.5 h-3.5 text-blue-500" />
+                            <span>أداة توزيع النماذج (أ، ب، ج)</span>
+                          </span>
+                        </label>
+                        
+                        {showModelDistribution && (
+                          <div className="flex flex-col gap-2.5 animate-in slide-in-from-top-2">
+                            <label className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 cursor-pointer group hover:border-blue-300 transition-colors">
+                              <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900:text-white">توزيع عشوائي للنماذج</span>
+                              <input 
+                                type="checkbox" 
+                                checked={isRandomDistribution}
+                                onChange={(e) => setIsRandomDistribution(e.target.checked)}
+                                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                              />
+                            </label>
+                            
+                            <label className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 cursor-pointer group hover:border-blue-300 transition-colors">
+                              <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900:text-white">إظهار النموذج في الجدول</span>
+                              <input 
+                                type="checkbox" 
+                                checked={showModelsInTable}
+                                onChange={(e) => setShowModelsInTable(e.target.checked)}
+                                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center p-4 text-xs font-bold text-slate-500">
+                      يرجى اختيار الصف والفصل لتفعيل الأدوات الإضافية.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* Suggested Form Models Distribution Banner */}
-      {selectedGrade && selectedClassNum && classStudents.length > 0 && (
-        <div className="my-2.5 p-3 bg-emerald-50/90 border border-dashed border-emerald-300 rounded-2xl text-emerald-950 font-bold text-xs flex flex-wrap items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-emerald-700 shrink-0" />
-            <span className="text-emerald-900 font-black">توزيع النماذج المقترح:</span>
-            <span className="text-emerald-800 dir-rtl font-black bg-white/90 px-2.5 py-1 rounded-xl border border-emerald-200/90 shadow-2xs">
-              {isRandomDistribution 
-                ? 'توزيع عشوائي (أ ، ب ، ج)' 
-                : '1-20 (أ) ، 21-35 (ب) ، الآخر (ج)'}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-1.5 cursor-pointer text-emerald-900 hover:text-emerald-950 font-black select-none">
-              <input 
-                type="checkbox" 
-                checked={isRandomDistribution}
-                onChange={(e) => setIsRandomDistribution(e.target.checked)}
-                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-emerald-400 cursor-pointer"
-              />
-              <span>توزيع عشوائي</span>
-            </label>
-
-            <label className="flex items-center gap-1.5 cursor-pointer text-slate-800 hover:text-slate-950 font-black bg-white px-2.5 py-1 rounded-xl border border-emerald-200/90 shadow-2xs select-none">
-              <input 
-                type="checkbox" 
-                checked={showModelsInTable}
-                onChange={(e) => setShowModelsInTable(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0284c7] focus:ring-[#0284c7] border-slate-300 cursor-pointer"
-              />
-              <span>إظهار النموذج للطلاب</span>
-            </label>
-          </div>
-        </div>
-      )}
-
-      {/* Table Container - Compact for minimal scrolling */}
-      <div id="roster-table-container" className="mt-2 rounded-lg overflow-hidden border border-slate-200 shadow-sm overflow-x-auto w-full max-h-[70vh] overflow-y-auto">
+      {/* Table Container - Compact for minimal scrolling, expanded in Focus Mode */}
+      <div 
+        id="roster-table-container" 
+        className={`mt-2 rounded-xl overflow-hidden border border-slate-200 shadow-sm overflow-x-auto w-full transition-all ${
+          isFocusMode 
+            ? 'flex-1 min-h-[60vh] max-h-[calc(100vh-170px)] bg-white border-2 border-indigo-500/40 shadow-2xl' 
+            : 'max-h-[70vh] bg-white'
+        } overflow-y-auto`}
+      >
         <table className="w-full text-right border-separate border-spacing-0 whitespace-nowrap">
           <thead>
             <tr className="bg-[#1e3a8a] text-white text-sm font-bold shadow-sm">
-              <th className="py-2 px-1 text-xs min-w-[36px] max-w-[36px] w-[36px] text-center sticky right-0 bg-[#1e3a8a] z-20 border-b border-l border-slate-700 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">م</th>
-              <th className="p-2 min-w-[90px] max-w-[90px] w-[90px] sticky right-[36px] bg-[#1e3a8a] z-20 border-b border-l border-slate-700 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">الاسم</th>
+              <th className="py-2 px-1 text-xs min-w-[36px] max-w-[36px] w-[36px] text-center sticky top-0 right-0 bg-[#1e3a8a] z-40 border-b border-l border-slate-700 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">م</th>
+              <th className="p-2 min-w-[90px] max-w-[90px] w-[90px] sticky top-0 right-[36px] bg-[#1e3a8a] z-40 border-b border-l border-slate-700 shadow-[-2px_0_4px_rgba(0,0,0,0.1)]">الاسم</th>
               
               {assessmentsToDisplay.map(num => (
-                <th key={num} className="py-2 px-1 text-center border-b border-l border-slate-700 whitespace-nowrap min-w-[38px]">
+                <th key={num} className="py-2 px-1 text-center sticky top-0 bg-[#1e3a8a] z-30 border-b border-l border-slate-700 whitespace-nowrap min-w-[38px]">
                   <div className="flex flex-col items-center justify-center leading-none gap-1">
-                    <span className="[writing-mode:vertical-rl] text-[10px] text-slate-300 font-bold tracking-tight py-0.5">أسبوع</span>
-                    <span className="text-xs font-black text-white bg-slate-800/80 px-1 py-0.5 rounded border border-slate-600/80">{num}</span>
+                    <span className="[writing-mode:vertical-rl] text-xs text-slate-300 font-bold tracking-tight py-0.5">أسبوع</span>
+                    <span className="text-xs font-bold text-white bg-slate-800/80 px-1 py-0.5 rounded border border-slate-600/80">{num}</span>
                   </div>
                 </th>
               ))}
-              <th className="p-3 text-center w-14 border-b border-r border-slate-700">تحكم</th>
+              <th className="p-3 text-center sticky top-0 bg-[#1e3a8a] z-30 w-14 border-b border-r border-slate-700">تحكم</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white text-sm font-bold text-slate-800">
@@ -1133,7 +1202,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
 
                 return (
                   <tr key={student.id} className={`${rowBgClass} transition-colors group`}>
-                    <td className={`py-1.5 px-1 text-xs text-center sticky right-0 ${stickyBgClass} z-20 border-b border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] min-w-[36px] max-w-[36px] w-[36px] font-black text-slate-700`}>{student.serialNumber}</td>
+                    <td className={`py-1.5 px-1 text-xs text-center sticky right-0 ${stickyBgClass} z-20 border-b border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] min-w-[36px] max-w-[36px] w-[36px] font-bold text-slate-700`}>{student.serialNumber}</td>
                     <td className={`p-2 text-xs sticky right-[36px] ${stickyBgClass} z-20 border-b border-l border-slate-200 shadow-[-2px_0_4px_rgba(0,0,0,0.02)] min-w-[90px] max-w-[90px] w-[90px] truncate`} title={student.name}>
                       <div className="flex items-center justify-between gap-1">
                         <span className="truncate">{getShortName(student.name)}</span>
@@ -1151,15 +1220,22 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
                     <td className="p-3 text-center border-b border-r border-slate-200">
                       <div className="flex items-center justify-center gap-1">
                         <button
+                          onClick={() => setSelectedStudentForProfile(student)}
+                          className="text-slate-500 hover:text-sky-600 p-1.5 rounded-md hover:bg-sky-50 transition-colors inline-block"
+                          title="الملف الشخصي"
+                        >
+                          <User className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleEditStudent(student)}
-                          className="text-slate-400 hover:text-teal-600 p-1.5 rounded-md hover:bg-teal-50 transition-colors inline-block"
+                          className="text-slate-500 hover:text-teal-600 p-1.5 rounded-md hover:bg-teal-50 transition-colors inline-block"
                           title="تعديل"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteStudent(student.id, student.name)}
-                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50 transition-colors inline-block"
+                          className="text-slate-500 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50 transition-colors inline-block"
                           title="حذف"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1171,7 +1247,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
               })
             ) : (
               <tr>
-                <td colSpan={assessmentsToDisplay.length + 4} className="p-8 text-center text-slate-400">
+                <td colSpan={assessmentsToDisplay.length + 4} className="p-8 text-center text-slate-500">
                   لا يوجد طلاب مسجلين في هذا الفصل
                 </td>
               </tr>
@@ -1184,7 +1260,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 relative animate-in fade-in zoom-in duration-200 shadow-xl">
-            <h2 className="text-center text-xl font-black text-slate-900 mb-6">تسجيل طالب</h2>
+            <h2 className="text-center text-xl font-bold text-slate-900 mb-6">تسجيل طالب</h2>
             <div className="space-y-5">
               {/* Name Input */}
               <div className="relative">
@@ -1199,7 +1275,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
                 <button
                   onClick={() => handleVoiceInput(setNewStudentName, setIsListeningAdd)}
                   className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors ${
-                    isListeningAdd ? 'bg-rose-100 text-rose-600 animate-pulse' : 'text-slate-400 hover:text-[#0284c7] hover:bg-slate-100'
+                    isListeningAdd ? 'bg-rose-100 text-rose-600 animate-pulse' : 'text-slate-500 hover:text-[#0284c7] hover:bg-slate-100'
                   }`}
                   title="إدخال بالصوت"
                 >
@@ -1281,7 +1357,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
       {studentToEdit && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 relative animate-in fade-in zoom-in duration-200 shadow-xl">
-            <h2 className="text-center text-xl font-black text-slate-900 mb-6">تعديل اسم الطالب</h2>
+            <h2 className="text-center text-xl font-bold text-slate-900 mb-6">تعديل اسم الطالب</h2>
             <div className="space-y-5">
               <div className="relative">
                 <input
@@ -1295,7 +1371,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
                 <button
                   onClick={() => handleVoiceInput(setEditStudentName, setIsListeningEdit)}
                   className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors ${
-                    isListeningEdit ? 'bg-rose-100 text-rose-600 animate-pulse' : 'text-slate-400 hover:text-teal-600 hover:bg-slate-100'
+                    isListeningEdit ? 'bg-rose-100 text-rose-600 animate-pulse' : 'text-slate-500 hover:text-teal-600 hover:bg-slate-100'
                   }`}
                   title="إدخال بالصوت"
                 >
@@ -1328,7 +1404,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
       {errorMessage && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 relative animate-in fade-in zoom-in duration-200 shadow-xl">
-            <h2 className="text-center text-xl font-black text-rose-600 mb-2">تنبيه</h2>
+            <h2 className="text-center text-xl font-bold text-rose-600 mb-2">تنبيه</h2>
             <p className="text-center text-slate-600 font-bold mb-6">
               {errorMessage.split('|')[0]}
             </p>
@@ -1395,7 +1471,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
       {studentToDelete && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 relative animate-in fade-in zoom-in duration-200 shadow-xl">
-            <h2 className="text-center text-xl font-black text-rose-600 mb-2">تأكيد الحذف</h2>
+            <h2 className="text-center text-xl font-bold text-rose-600 mb-2">تأكيد الحذف</h2>
             <p className="text-center text-slate-600 font-bold mb-6">
               هل أنت متأكد من حذف الطالب {studentToDelete.name}؟
             </p>
@@ -1423,7 +1499,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-slate-800">تخصيص مظهر الفصل</h3>
-              <button onClick={() => setIsAppearanceModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+              <button onClick={() => setIsAppearanceModalOpen(false)} className="text-slate-500 hover:text-slate-600 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1486,7 +1562,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-slate-900">
+              <h3 className="text-lg font-bold text-slate-900">
                 تحذير: إلغاء كل التقييمات
               </h3>
               <p className="text-sm font-bold text-slate-600 mt-2 leading-relaxed">
@@ -1520,6 +1596,25 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
 
           </div>
         </div>
+      )}
+
+      {/* Student Profile Modal */}
+      {selectedStudentForProfile && (
+        <StudentProfileDashboard
+          student={selectedStudentForProfile}
+          attendance={attendance.filter(a => a.student_id === selectedStudentForProfile.id)}
+          records={records}
+          onAddReminder={onAddReminder}
+          onClose={() => setSelectedStudentForProfile(null)}
+          onUpdateStudent={(updated) => {
+            const updatedStudents = students.map(s => s.id === updated.id ? updated : s);
+            setStudents(updatedStudents);
+            if (isFirebaseConnected) {
+              saveFirebaseStudent(updated, teacherId).catch(e => console.error(e));
+            }
+            setSelectedStudentForProfile(updated);
+          }}
+        />
       )}
     </div>
   );

@@ -1,8 +1,8 @@
 import { MonthInfo, TermId, TeacherProfile } from '../types';
 
 export const STAGE_OPTIONS = [
-  'المرحلة الإعدادية',
   'المرحلة الابتدائية',
+  'المرحلة الاعدادية',
   'المرحلة الثانوية',
 ] as const;
 
@@ -10,8 +10,8 @@ export const DEFAULT_TEACHER: TeacherProfile = {
   id: 'T-1001',
   name: 'معلم المادة (اضغط للتعديل)',
   subject: 'الرياضيات',
-  school: 'المدرسة الإعدادية',
-  educationalStage: 'المرحلة الإعدادية',
+  school: 'المدرسة',
+  educationalStage: 'المرحلة الابتدائية',
   classesTaught: '1/1، 1/2، 2/1، 3/1',
 };
 
@@ -27,6 +27,9 @@ export const GRADES = [
   'الأول',
   'الثاني',
   'الثالث',
+  'الرابع',
+  'الخامس',
+  'السادس',
 ] as const;
 
 export const CLASSES_COUNT = 15; // 1 to 15

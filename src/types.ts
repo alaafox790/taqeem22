@@ -18,6 +18,7 @@ export interface Student {
   religion?: 'مسلم' | 'مسيحي';
   status?: 'مستجد' | 'باق';
   parentPhone?: string;
+  photoUrl?: string;
 }
 
 export interface StudentAttendance {
@@ -85,4 +86,17 @@ export interface TimingCheckResult {
   isExceptional: boolean;
   warningMessage?: string;
 }
+
+export interface Reminder {
+  id: string;
+  title: string;
+  description?: string;
+  targetType: 'student' | 'class' | 'general';
+  targetName?: string; // student name or class name e.g. "1/1"
+  reminderDate: string; // YYYY-MM-DD
+  isCompleted: boolean;
+  created_at: string;
+  notifyStudents?: boolean;
+}
+
 

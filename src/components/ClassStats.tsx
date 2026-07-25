@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Line, LineChart, PieChart, Pie, Cell } from 'recharts';
 import { AssessmentRecord, Student, StudentAttendance, TermId } from '../types';
 import { MONTHS_DATA } from '../lib/constants';
-import { Book, Calculator, Globe, FlaskConical, Languages, Music, Palette, PenTool, Dna, Code, TrendingUp } from 'lucide-react';
+import { Book, Calculator, Globe, FlaskConical, Languages, Music, Palette, PenTool, Dna, Code, TrendingUp, FileSpreadsheet, FileText, Calendar, CheckCircle2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const COLORS = ['#6366f1', '#14b8a6', '#f59e0b', '#f43f5e', '#8b5cf6', '#0ea5e9', '#10b981', '#d946ef'];
 
@@ -113,6 +114,61 @@ export const ClassStats: React.FC<ClassStatsProps> = ({ records, selectedTerm, t
     return { classData: data.sort((a, b) => a.sortKey.localeCompare(b.sortKey)), monthlyData };
   }, [records, selectedTerm, localStorageKey]);
 
+  const handleExportExcel = () => {
+    const exportData = chartData.classData.map((cls, idx) => ({
+      'م': idx + 1,
+      'الفصل': cls.name,
+      'عدد التقييمات': cls.assessmentsCount,
+      'معدل الحضور (%)': `${cls.attendanceRate}%`
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "إحصائيات الفصول");
+    XLSX.writeFile(wb, `إحصائيات_وتقييمات_الفصل_${selectedTerm}.xlsx`);
+  };
+
+  // Export CSV Helper
+  const handleExportCSV = () => {
+    const exportData = chartData.classData.map((cls, idx) => ({
+      'م': idx + 1,
+      'الفصل': cls.name,
+      'عدد التقييمات': cls.assessmentsCount,
+      'معدل الحضور (%)': `${cls.attendanceRate}%`
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `إحصائيات_وتقييمات_الفصل_${selectedTerm}.csv`;
+    link.click();
+  };
+
+  // Summary Stats Calculations (Moved from Home Screen - Image 30)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayAssessmentsCount = records.filter(r => r.assess_date === todayStr || (r.created_at && r.created_at.startsWith(todayStr))).length;
+
+  const currentMonthNum = new Date().getMonth() + 1;
+  const activeMonth = MONTHS_DATA.find(m => m.termId === selectedTerm && m.monthNumber === currentMonthNum) || MONTHS_DATA.find(m => m.termId === selectedTerm) || MONTHS_DATA[0];
+
+  const currentMonthRecords = records.filter(r => r.term_id === selectedTerm && r.month_id === activeMonth?.id);
+  const classesList = teacher.classesTaught ? teacher.classesTaught.split(/[,،]/).map(s => s.trim()).filter(Boolean) : ['1/1', '1/2'];
+  const totalClassesCount = Math.max(1, classesList.length);
+  const assessmentsInActiveMonth = activeMonth ? activeMonth.assessments.length : 3;
+  const totalExpectedMonthAssessments = totalClassesCount * assessmentsInActiveMonth;
+  const recordedMonthAssessments = currentMonthRecords.length;
+  const remainingMonthAssessments = Math.max(0, totalExpectedMonthAssessments - recordedMonthAssessments);
+
+  const monthlyProgressChartData = activeMonth ? activeMonth.assessments.map(assessNum => {
+    const count = currentMonthRecords.filter(r => r.assess_num === assessNum).length;
+    return {
+      name: `ت ${assessNum}`,
+      المسجل: count,
+    };
+  }) : [];
+
   if (chartData.classData.length === 0) {
     return (
       <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 flex flex-col items-center justify-center min-h-[400px] animate-in fade-in">
@@ -131,14 +187,88 @@ export const ClassStats: React.FC<ClassStatsProps> = ({ records, selectedTerm, t
 
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 shadow-sm border border-slate-100 w-full animate-in fade-in">
-      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0 shadow-sm border border-indigo-100">
-          {getSubjectIcon(teacher.subjectIcon, "w-5 h-5 sm:w-6 sm:h-6 text-indigo-600")}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0 shadow-sm border border-indigo-100">
+            {getSubjectIcon(teacher.subjectIcon, "w-5 h-5 sm:w-6 sm:h-6 text-indigo-600")}
+          </div>
+          <div>
+            <h2 className="text-lg sm:text-2xl font-black text-slate-800">إحصائيات الفصول ({teacher.subject})</h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-bold mt-0.5 sm:mt-1">مقارنة الحضور والتقييمات</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg sm:text-2xl font-black text-slate-800">إحصائيات الفصول ({teacher.subject})</h2>
-          <p className="text-xs sm:text-sm text-slate-500 font-bold mt-0.5 sm:mt-1">مقارنة الحضور والتقييمات</p>
+
+        {/* Export Buttons */}
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+          <button
+            onClick={handleExportExcel}
+            className="flex-1 sm:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            title="تصدير تقرير الإحصائيات إلى Excel"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>تصدير Excel</span>
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            title="تصدير تقرير الإحصائيات إلى CSV"
+          >
+            <FileText className="w-4 h-4" />
+            <span>تصدير CSV</span>
+          </button>
         </div>
+      </div>
+
+      {/* Summary Cards & Monthly Progress Chart (Moved from Home Screen - Image 30) */}
+      <div className="mb-6 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Today's Assessments Card */}
+          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 shadow-xs border border-slate-100 dark:border-slate-700/80 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">التقييمات المسجلة اليوم</p>
+              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{todayAssessmentsCount}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+              <Calendar className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Remaining Assessments for Current Month */}
+          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 shadow-xs border border-slate-100 dark:border-slate-700/80 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">المتبقي للشهر ({activeMonth?.name || 'الحالي'})</p>
+              <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{remainingMonthAssessments}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+
+        {/* Recharts Progress Chart */}
+        {monthlyProgressChartData.length > 0 && (
+          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 shadow-xs border border-slate-100 dark:border-slate-700/80">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-black text-slate-700 dark:text-slate-200">تقدم التقييمات الشهرية ({activeMonth?.name})</span>
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 rounded-md">
+                المسجل: {recordedMonthAssessments}
+              </span>
+            </div>
+            <div className="h-32 w-full" dir="ltr">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyProgressChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#64748b" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 10 }} stroke="#64748b" />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                    formatter={(value: any) => [`${value} سجل`, 'العدد']}
+                  />
+                  <Bar dataKey="المسجل" fill="#059669" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">

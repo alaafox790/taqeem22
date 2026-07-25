@@ -80,17 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </div>
 
-            {/* Mobile Connection Status Indicator */}
-            <div 
-              className={`flex md:hidden items-center justify-center w-8 h-8 rounded-lg border transition-colors ${
-                isFirebaseConnected 
-                  ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
-                  : 'bg-rose-50 text-rose-600 border-rose-200'
-              }`}
-              title={isFirebaseConnected ? 'متصل بالإنترنت' : 'غير متصل - يتم الحفظ مؤقتاً'}
-            >
-              {isFirebaseConnected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
-            </div>
+
 
             {/* Teacher Info Button - Mobile & Desktop */}
             <button
@@ -106,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Center / Bottom: Navigation Tabs Bar */}
-          <div className="flex items-center justify-between md:justify-center gap-0.5 sm:gap-1.5 w-full md:w-auto bg-slate-50/80 backdrop-blur-md p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-200/60 shadow-inner overflow-hidden">
+          <div className="hidden items-center justify-between md:justify-center gap-0.5 sm:gap-1.5 w-full md:w-auto bg-slate-50/80 backdrop-blur-md p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-200/60 shadow-inner overflow-hidden">
             {/* Tab 1: Assessments */}
             <button
               onClick={() => handleTabClick('assessments')}
@@ -213,7 +203,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {teacher.name}
                 </div>
                 <div className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">
-                  {teacher.subject} • {teacher.educationalStage || 'المرحلة الإعدادية'}
+                  {teacher.subject}{teacher.educationalStage ? ` • ${teacher.educationalStage}` : ''}
                 </div>
               </div>
               <Settings className="w-4 h-4 text-slate-400 mr-0.5" />

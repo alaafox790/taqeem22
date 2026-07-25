@@ -65,6 +65,12 @@ export const LateAssessments: React.FC<LateAssessmentsProps> = ({ teacherId, rec
       return { grade, classNum: parseInt(classNum, 10) };
     });
 
+    let attendance: any[] = [];
+    try {
+      const saved = localStorage.getItem('school_assessments_attendance_v1');
+      if (saved) attendance = JSON.parse(saved);
+    } catch (e) {}
+
     const lateList: any[] = [];
 
     classes.forEach(cls => {
@@ -111,7 +117,30 @@ export const LateAssessments: React.FC<LateAssessmentsProps> = ({ teacherId, rec
                 classNum: cls.classNum,
                 assessNum: i,
                 monthInfo,
-                termId: selectedTerm
+                termId: selectedTerm,
+                type: 'missing_record'
+              });
+            }
+          }
+        } else {
+          // Assessment record exists, check if any student attendance is recorded
+          const hasAttendance = attendance.some(a => 
+            a.grade === cls.grade && 
+            a.class_num === cls.classNum && 
+            a.assess_num === i && 
+            a.month_id === selectedTerm
+          );
+
+          if (!hasAttendance) {
+            const monthInfo = MONTHS_DATA.find(m => m.termId === selectedTerm && m.assessments.includes(i));
+            if (monthInfo) {
+              lateList.push({
+                grade: cls.grade,
+                classNum: cls.classNum,
+                assessNum: i,
+                monthInfo,
+                termId: selectedTerm,
+                type: 'unrecorded_students'
               });
             }
           }
@@ -142,27 +171,29 @@ export const LateAssessments: React.FC<LateAssessmentsProps> = ({ teacherId, rec
 
   if (lateAssessments.length === 0) {
     return (
-      <div className="w-full bg-white rounded-3xl p-6 shadow-sm border border-emerald-100 mt-6 flex flex-col items-center justify-center gap-3 text-center">
-        <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500">
-          <AlertCircle className="w-6 h-6" />
+      <div className="w-full bg-white/90 backdrop-blur-xl rounded-3xl p-5 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-2 text-center">
+        <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500">
+          <AlertCircle className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="font-bold text-slate-800">لا توجد تقييمات متأخرة!</h3>
-          <p className="text-sm text-slate-500">عمل رائع، جميع سجلاتك محدثة.</p>
+          <h3 className="font-bold text-slate-800 text-sm">لا توجد تقييمات منسية!</h3>
+          <p className="text-xs text-slate-500">جميع تقييمات الفصول مسجلة ومحدثة مقارنة بالخطة الشهرية.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full bg-white rounded-3xl shadow-sm border border-rose-100 mt-6 overflow-hidden">
-      <div className="p-5 border-b border-rose-50 bg-rose-50/30 flex items-center gap-3">
-        <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center text-rose-600 shadow-sm shrink-0">
-          <AlertCircle className="w-5 h-5" />
-        </div>
-        <div>
-          <h3 className="font-black text-rose-700">التقييمات المتأخرة</h3>
-          <p className="text-xs text-rose-500 font-medium">{lateAssessments.length} تقييم يحتاج إلى إدخال</p>
+    <div className="w-full bg-white/90 backdrop-blur-xl rounded-3xl shadow-sm border border-rose-100 overflow-hidden">
+      <div className="p-4 border-b border-rose-50 bg-rose-50/40 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-rose-100 rounded-xl flex items-center justify-center text-rose-600 shadow-xs shrink-0">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-black text-rose-700 text-sm">التقييمات المنسية (المتأخرة)</h3>
+            <p className="text-[11px] text-rose-500 font-medium">هناك {lateAssessments.length} تقييم لم يتم تسجيله مقارنة بالخطة الشهرية</p>
+          </div>
         </div>
       </div>
 
@@ -170,24 +201,29 @@ export const LateAssessments: React.FC<LateAssessmentsProps> = ({ teacherId, rec
         {lateAssessments.map((late, idx) => (
           <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-colors gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 font-black shrink-0">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-black shrink-0 ${late.type === 'unrecorded_students' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
                 {late.assessNum}
               </div>
               <div>
                 <h4 className="font-bold text-slate-800 text-sm mb-0.5">
                   الصف {late.grade} - فصل {late.classNum}
                 </h4>
-                <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
-                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {late.monthInfo.name}</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> التقييم رقم {late.assessNum}</span>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
+                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {late.monthInfo.name}</span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> التقييم رقم {late.assessNum}</span>
+                  </div>
+                  {late.type === 'unrecorded_students' && (
+                    <span className="text-[10px] font-bold text-amber-600">المعلم لم يسجل التقييمات للطلاب بالرغم من تسجيل تاريخه</span>
+                  )}
                 </div>
               </div>
             </div>
             
             <button
               onClick={() => onOpenAssessment(late.monthInfo, late.assessNum, late.termId)}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shrink-0 w-full sm:w-auto"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors shadow-sm shrink-0 w-full sm:w-auto cursor-pointer"
             >
               تسجيل سريع
               <ChevronLeft className="w-3 h-3" />

@@ -14,6 +14,7 @@ import { StudentReportsScreen } from './components/StudentReportsScreen';
 import { AssessmentModal } from './components/AssessmentModal';
 import { DuplicateConfirmModal } from './components/DuplicateConfirmModal';
 import { TeacherProfileModal } from './components/TeacherProfileModal';
+import { RemindersModal } from './components/RemindersModal';
 import { Toast, ToastMessage } from './components/Toast';
 import { LoginScreen, ManagementLoginData } from './components/LoginScreen';
 
@@ -21,7 +22,7 @@ import { HomeScreen } from './components/HomeScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { SplashScreen } from './components/SplashScreen';
 
-import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab, StatusColors } from './types';
+import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab, StatusColors, Reminder, Student } from './types';
 import { getAdjustedDueDate, isTeacherProfileComplete } from './lib/validation';
 import { DEFAULT_TEACHER, DEFAULT_ACADEMIC_YEAR, MONTHS_DATA } from './lib/constants';
 import { getStoredStatusColors, saveStoredStatusColors } from './lib/statusColors';
@@ -49,6 +50,7 @@ export default function App() {
 
   // Navigation tab state (4 screens + countdown)
   const [activeTab, setActiveTab] = useState<AppTab>('home');
+  const [hasShownCompleteToast, setHasShownCompleteToast] = useState(false);
 
   // Teacher profile state
   const [teacher, setTeacher] = useState<TeacherProfile>(() => {
@@ -131,6 +133,45 @@ export default function App() {
   const [records, setRecords] = useState<AssessmentRecord[]>([]);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(true);
 
+  // Custom Reminders state
+  const REMINDERS_STORAGE_KEY = 'school_assessments_custom_reminders_v1';
+  const [reminders, setReminders] = useState<Reminder[]>(() => {
+    try {
+      const saved = localStorage.getItem(REMINDERS_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
+  const [isRemindersModalOpen, setIsRemindersModalOpen] = useState(false);
+
+  const handleAddReminder = (newRem: { title: string; description?: string; targetType: 'student' | 'class' | 'general'; targetName?: string; reminderDate: string; notifyStudents?: boolean }) => {
+    const reminder: Reminder = {
+      id: `rem_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      ...newRem,
+      isCompleted: false,
+      created_at: new Date().toISOString()
+    };
+    const updated = [reminder, ...reminders];
+    setReminders(updated);
+    localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(updated));
+    showToast('success', 'تم إضافة التنبيه', 'تم جدولة التنبيه بنجاح وسيظهر في موعده المحدد.');
+  };
+
+  const handleDeleteReminder = (id: string) => {
+    const updated = reminders.filter(r => r.id !== id);
+    setReminders(updated);
+    localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(updated));
+    showToast('info', 'تم حذف التنبيه', 'تم إزالة التنبيه من القائمة.');
+  };
+
+  const handleToggleReminderComplete = (id: string) => {
+    const updated = reminders.map(r => r.id === id ? { ...r, isCompleted: !r.isCompleted } : r);
+    setReminders(updated);
+    localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(updated));
+  };
+
   // Modal UI states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [activeAssessNum, setActiveAssessNum] = useState<number | null>(null);
@@ -187,10 +228,20 @@ export default function App() {
     loadData();
   }, [loadData]);
 
-  // Prompt teacher to complete profile if incomplete
+  // Prompt teacher to complete profile if incomplete (only once ever)
   useEffect(() => {
-    if (isAuthenticated && !managementSession && !isTeacherProfileComplete(teacher)) {
-      setIsProfileOpen(true);
+    if (isAuthenticated && !managementSession) {
+      const hasShownAccountStatusToast = localStorage.getItem('has_shown_complete_account_toast_v2');
+      if (!isTeacherProfileComplete(teacher)) {
+        const hasPromptedProfile = localStorage.getItem('has_prompted_profile_v2');
+        if (!hasPromptedProfile) {
+          setIsProfileOpen(true);
+          localStorage.setItem('has_prompted_profile_v2', 'true');
+        }
+      } else if (!hasShownAccountStatusToast) {
+        showToast('success', 'حالة الحساب', 'جميع بيانات المعلم والقيادة المدرسية مسجلة وموثقة (جميع الأيقونات مفعلة)');
+        localStorage.setItem('has_shown_complete_account_toast_v2', 'true');
+      }
     }
   }, [isAuthenticated, managementSession, teacher]);
 
@@ -465,6 +516,9 @@ export default function App() {
               setActiveTab('assessments');
             }}
             onLogout={handleLogout}
+            reminders={reminders}
+            onOpenRemindersModal={() => setIsRemindersModalOpen(true)}
+            onToggleReminderComplete={handleToggleReminderComplete}
           />
         )}
 
@@ -515,6 +569,7 @@ export default function App() {
               selectedMonthId={selectedMonth.id}
               teacherId={teacher.id}
               isFirebaseConnected={isFirebaseConnected}
+              onAddReminder={handleAddReminder}
               statusColors={statusColors}
               onDeleteRecordsForClass={(grade, classNum) => {
                 setRecords(prev => prev.filter(r => !(r.grade === grade && r.class_num === classNum)));
@@ -620,6 +675,34 @@ export default function App() {
         teacher={teacher}
         onSaveTeacher={handleSaveTeacher}
         onRefreshData={loadData}
+      />
+
+      {/* Modal: Custom Reminders & Overdue Assessments */}
+      <RemindersModal
+        isOpen={isRemindersModalOpen}
+        onClose={() => setIsRemindersModalOpen(false)}
+        reminders={reminders}
+        onAddReminder={handleAddReminder}
+        onDeleteReminder={handleDeleteReminder}
+        onToggleComplete={handleToggleReminderComplete}
+        students={(() => {
+          try {
+            const saved = localStorage.getItem('school_assessments_students_roster_v1');
+            if (saved) return JSON.parse(saved);
+          } catch (e) {}
+          return [];
+        })()}
+        teacher={teacher}
+        records={records}
+        selectedTerm={selectedTerm}
+        academicYear={academicYear}
+        onOpenAssessment={(month, num, term) => {
+          setSelectedTerm(term);
+          setSelectedMonth(month);
+          setActiveAssessNum(num);
+          setActiveTab('assessments');
+          setIsRemindersModalOpen(false);
+        }}
       />
 
       {/* Toast Notification */}

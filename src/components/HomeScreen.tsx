@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Award, GraduationCap, BarChart3, Search, Shield,
-  MessageCircle, LogOut, Settings, AlertTriangle, CheckCircle2, UserCheck, Lock } from 'lucide-react';
-import { AppTab, TeacherProfile, AssessmentRecord, MonthInfo, TermId } from '../types';
+  MessageCircle, LogOut, Settings, AlertTriangle, CheckCircle2, UserCheck, Lock, Calendar, BellRing, Check, User, Users, Plus, ScrollText } from 'lucide-react';
+import { AppTab, TeacherProfile, AssessmentRecord, MonthInfo, TermId, Reminder } from '../types';
 import { MONTHS_DATA } from '../lib/constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { isTeacherProfileComplete } from '../lib/validation';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LateAssessments } from './LateAssessments';
 
 interface HomeScreenProps {
   onNavigate: (tab: AppTab) => void;
@@ -15,9 +17,24 @@ interface HomeScreenProps {
   academicYear: string;
   onOpenAssessment: (month: MonthInfo, assessNum: number, termId: TermId) => void;
   onLogout?: () => void;
+  reminders: Reminder[];
+  onOpenRemindersModal: () => void;
+  onToggleReminderComplete: (id: string) => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onOpenProfile, records, selectedTerm, academicYear, onOpenAssessment, onLogout }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({
+  onNavigate,
+  teacher,
+  onOpenProfile,
+  records,
+  selectedTerm,
+  academicYear,
+  onOpenAssessment,
+  onLogout,
+  reminders,
+  onOpenRemindersModal,
+  onToggleReminderComplete
+}) => {
   const [showAltText, setShowAltText] = useState(false);
   const [showIncompleteNotice, setShowIncompleteNotice] = useState(false);
 
@@ -48,6 +65,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
   const currentMonthRecords = records.filter(r => activeMonth && r.month_id === activeMonth.id);
   const assessmentsCount = currentMonthRecords.length;
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayAssessmentsCount = records.filter(r => r.assess_date === todayStr || (r.created_at && r.created_at.startsWith(todayStr))).length;
+  const activeReminders = reminders.filter(r => !r.isCompleted && r.reminderDate <= todayStr);
+
+  const classesList = teacher.classesTaught ? teacher.classesTaught.split(/[,،]/).map(s => s.trim()).filter(Boolean) : ['1/1', '1/2'];
+  const totalClassesCount = Math.max(1, classesList.length);
+  const assessmentsInActiveMonth = activeMonth ? activeMonth.assessments.length : 4;
+  const totalExpectedMonthAssessments = totalClassesCount * assessmentsInActiveMonth;
+  const recordedMonthAssessments = currentMonthRecords.length;
+  const remainingMonthAssessments = Math.max(0, totalExpectedMonthAssessments - recordedMonthAssessments);
+
+  const chartData = activeMonth ? activeMonth.assessments.map(assessNum => {
+    const count = currentMonthRecords.filter(r => r.assess_num === assessNum).length;
+    return {
+      name: `ت ${assessNum}`,
+      المسجل: count,
+    };
+  }) : [];
+
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-start p-3 sm:p-4 space-y-4 sm:space-y-6">
       {/* Top Bar for Settings and Logout */}
@@ -77,7 +113,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
             <div className="text-xs font-bold text-slate-800 max-w-[130px] truncate">
               {teacher.name}
             </div>
-            <div className="text-[10px] text-slate-500 font-medium truncate max-w-[130px]">
+            <div className="text-xs text-slate-500 font-medium truncate max-w-[130px]">
               {teacher.subject}
             </div>
           </div>
@@ -101,19 +137,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
           {/* Shiny sweep effect */}
           <div className="absolute inset-0 -translate-x-[150%] animate-[shimmer_3.5s_infinite] bg-gradient-to-r from-transparent via-amber-200/40 to-transparent skew-x-12 w-[150%]"></div>
           
-          <h1 className="relative text-5xl sm:text-6xl md:text-7xl font-black bg-gradient-to-r from-[#0f2b5c] via-[#059669] to-[#0f2b5c] bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(15,43,92,0.2)] font-serif tracking-tight">
+          <h1 className="relative text-5xl sm:text-6xl md:text-7xl font-bold bg-gradient-to-r from-[#0f2b5c] via-[#059669] to-[#0f2b5c] bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(15,43,92,0.2)] font-serif tracking-tight">
             تقييماتي
           </h1>
 
           <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-            <span className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#0f2b5c] via-[#059669] to-[#0f2b5c] text-white text-xs sm:text-sm font-black shadow-md shadow-emerald-700/20 tracking-wide">
+            <span className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#0f2b5c] via-[#059669] to-[#0f2b5c] text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-700/20 tracking-wide">
               {teacher.educationalStage || 'المرحلة الإعدادية'}
             </span>
-            {teacher.classesTaught && (
-              <span className="px-3 py-1 rounded-full bg-emerald-50 text-[#059669] border border-emerald-200/80 text-xs font-bold shadow-xs">
-                فصول المعلم: {teacher.classesTaught}
-              </span>
-            )}
+
           </div>
 
           <div className="w-full border-t border-sky-100 mt-2.5 pt-1.5 min-h-[28px] flex items-center justify-center cursor-pointer select-none" onClick={() => setShowAltText(prev => !prev)}>
@@ -125,7 +157,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -5 }}
                   transition={{ duration: 0.4 }}
-                  className="text-xs sm:text-sm font-black text-rose-600 tracking-widest text-center"
+                  className="text-xs sm:text-sm font-bold text-rose-600 tracking-widest text-center"
                 >
                   مدمرة حياتي
                 </motion.p>
@@ -146,143 +178,150 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
         </motion.div>
       </div>
 
-      {/* Mandatory Registration Notice Banner */}
-      {!isComplete ? (
-        <div className="w-full max-w-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-400 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 text-right">
-          <div className="flex items-start gap-3">
-            <div className="p-2.5 bg-amber-500 text-white rounded-2xl shrink-0 mt-0.5 shadow-md shadow-amber-500/30">
-              <AlertTriangle className="w-6 h-6 sm:w-7 sm:h-7" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-black text-amber-950 flex items-center gap-1.5">
-                <span>⚠️ تنبيه إجباري: تسجيل كافة البيانات قبل العمل</span>
-              </h3>
-              <p className="text-xs sm:text-sm font-bold text-amber-900 leading-relaxed mt-1">
-                يلزم تسجيل وتسجيل كافة بيانات المعلم وأرقام هواتف (المدير، الوكيل، والمشرف) لتفعيل أزرار وأيقونات التطبيق.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onOpenProfile}
-            className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-600 via-emerald-600 to-amber-600 text-white rounded-2xl font-black text-xs sm:text-sm shadow-md hover:shadow-lg transition-all active:scale-95 shrink-0 flex items-center justify-center gap-2 cursor-pointer border border-amber-300"
-          >
-            <UserCheck className="w-5 h-5 text-amber-200" />
-            <span>تسجيل البيانات الآن ✏️</span>
-          </button>
-        </div>
-      ) : (
-        <div className="w-full max-w-2xl bg-emerald-50/90 border border-emerald-200/80 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-2 text-emerald-900 text-xs sm:text-sm font-black shadow-xs">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span>جميع بيانات المعلم والقيادة المدرسية مسجلة وموثقة (جميع الأيقونات مفعلة)</span>
-          </div>
-          <button
-            onClick={onOpenProfile}
-            className="text-emerald-700 underline hover:text-emerald-900 text-xs font-black cursor-pointer shrink-0"
-          >
-            تعديل البيانات
-          </button>
-        </div>
-      )}
-
-      {/* Grid */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 w-full max-w-2xl px-1 sm:px-0">
+      {/* Main Feature Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4 w-full max-w-2xl px-1 sm:px-0">
         {/* Assessments */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.1 }}
           onClick={() => handleCardClick('assessments')}
-          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
+          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
         >
           {!isComplete && (
-            <div className="absolute top-3 left-3 w-7 h-7 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
-              <Lock className="w-3.5 h-3.5" />
+            <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
+              <Lock className="w-3 h-3" />
             </div>
           )}
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-rose-400 to-orange-400 text-white shadow-lg shadow-rose-400/30 flex items-center justify-center transition-all group-hover:shadow-rose-400/50 group-hover:scale-110 duration-300">
-            <Award className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-rose-400 to-orange-400 text-white shadow-lg shadow-rose-400/30 flex items-center justify-center transition-all group-hover:shadow-rose-400/50 group-hover:scale-110 duration-300">
+            <Award className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
-          <span className="text-sm sm:text-lg font-black text-slate-700 group-hover:text-rose-500 transition-colors">التقييمات</span>
+          <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-rose-500 transition-colors">التقييمات</span>
         </motion.button>
 
         {/* Students */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
           onClick={() => handleCardClick('students')}
-          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
+          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
         >
           {!isComplete && (
-            <div className="absolute top-3 left-3 w-7 h-7 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
-              <Lock className="w-3.5 h-3.5" />
+            <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
+              <Lock className="w-3 h-3" />
             </div>
           )}
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-lg shadow-blue-400/30 flex items-center justify-center transition-all group-hover:shadow-blue-400/50 group-hover:scale-110 duration-300">
-            <GraduationCap className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-lg shadow-blue-400/30 flex items-center justify-center transition-all group-hover:shadow-blue-400/50 group-hover:scale-110 duration-300">
+            <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
-          <span className="text-sm sm:text-lg font-black text-slate-700 group-hover:text-blue-500 transition-colors">الطلاب</span>
+          <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-blue-500 transition-colors">الطلاب</span>
+        </motion.button>
+
+        {/* Custom Reminders - Dedicated Icon Card */}
+        <motion.button
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3 }}
+          onClick={() => {
+            if (!isComplete) {
+              setShowIncompleteNotice(true);
+              onOpenProfile();
+              return;
+            }
+            onOpenRemindersModal();
+          }}
+          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
+        >
+          {!isComplete ? (
+            <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
+              <Lock className="w-3 h-3" />
+            </div>
+          ) : activeReminders.length > 0 ? (
+            <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-rose-600 text-white font-bold text-xs shadow-xs animate-pulse">
+              {activeReminders.length} تنبيه
+            </div>
+          ) : null}
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-400/30 flex items-center justify-center transition-all group-hover:shadow-amber-400/50 group-hover:scale-110 duration-300">
+            <BellRing className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+          </div>
+          <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-amber-600 transition-colors">إدارة التنبيهات</span>
+        </motion.button>
+
+        {/* Reports */}
+        <motion.button
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.4 }}
+          onClick={() => handleCardClick('reports')}
+          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
+        >
+          {!isComplete && (
+            <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
+              <Lock className="w-3 h-3" />
+            </div>
+          )}
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/30 flex items-center justify-center transition-all group-hover:shadow-violet-500/50 group-hover:scale-110 duration-300">
+            <ScrollText className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+          </div>
+          <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-violet-600 transition-colors">التقارير</span>
         </motion.button>
 
         {/* Stats */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.4 }}
           onClick={() => handleCardClick('stats')}
-          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
+          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
         >
           {!isComplete && (
-            <div className="absolute top-3 left-3 w-7 h-7 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
-              <Lock className="w-3.5 h-3.5" />
+            <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
+              <Lock className="w-3 h-3" />
             </div>
           )}
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-400 text-white shadow-lg shadow-emerald-400/30 flex items-center justify-center transition-all group-hover:shadow-emerald-400/50 group-hover:scale-110 duration-300">
-            <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-400 text-white shadow-lg shadow-emerald-400/30 flex items-center justify-center transition-all group-hover:shadow-emerald-400/50 group-hover:scale-110 duration-300">
+            <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
-          <span className="text-sm sm:text-lg font-black text-slate-700 group-hover:text-emerald-500 transition-colors">الإحصاء</span>
+          <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-emerald-500 transition-colors">الإحصاء</span>
         </motion.button>
 
         {/* Search */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.5 }}
           onClick={() => handleCardClick('search')}
-          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-6 flex flex-col items-center justify-center gap-2 sm:gap-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
+          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
         >
           {!isComplete && (
-            <div className="absolute top-3 left-3 w-7 h-7 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
-              <Lock className="w-3.5 h-3.5" />
+            <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
+              <Lock className="w-3 h-3" />
             </div>
           )}
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-400 text-white shadow-lg shadow-violet-400/30 flex items-center justify-center transition-all group-hover:shadow-violet-400/50 group-hover:scale-110 duration-300">
-            <Search className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-400 text-white shadow-lg shadow-violet-400/30 flex items-center justify-center transition-all group-hover:shadow-violet-400/50 group-hover:scale-110 duration-300">
+            <Search className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
-          <span className="text-sm sm:text-lg font-black text-slate-700 group-hover:text-violet-500 transition-colors">البحث</span>
+          <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-violet-500 transition-colors">البحث</span>
         </motion.button>
 
         {/* Admin Dashboard */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.7 }}
+          transition={{ delay: 0.6 }}
           onClick={() => handleCardClick('admin')}
-          className="group relative col-span-2 bg-gradient-to-r from-[#0f2b5c] via-[#113264] to-[#059669] rounded-3xl sm:rounded-[2rem] p-5 sm:p-6 flex flex-row items-center justify-start sm:justify-center gap-4 sm:gap-6 shadow-xl shadow-[#0f2b5c]/25 hover:shadow-2xl hover:shadow-[#0f2b5c]/35 transition-all duration-300 active:scale-95 border border-emerald-400/30 cursor-pointer"
+          className="group relative col-span-2 sm:col-span-1 bg-gradient-to-r from-[#0f2b5c] via-[#113264] to-[#059669] rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-xl shadow-[#0f2b5c]/25 hover:shadow-2xl hover:shadow-[#0f2b5c]/35 transition-all duration-300 active:scale-95 border border-emerald-400/30 cursor-pointer"
         >
           {!isComplete && (
-            <div className="absolute top-3 left-3 w-7 h-7 rounded-full bg-amber-400/30 border border-amber-300 flex items-center justify-center text-amber-300 shadow-xs">
-              <Lock className="w-3.5 h-3.5" />
+            <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-400/30 border border-amber-300 flex items-center justify-center text-amber-300 shadow-xs">
+              <Lock className="w-3 h-3" />
             </div>
           )}
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center transition-colors shrink-0 border border-white/20">
-            <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-amber-300 group-hover:scale-110 transition-transform duration-300" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center transition-colors shrink-0 border border-white/20">
+            <Shield className="w-6 h-6 sm:w-7 sm:h-7 text-amber-300 group-hover:scale-110 transition-transform duration-300" />
           </div>
-          <div className="text-right">
-            <span className="block text-base sm:text-2xl font-black text-white mb-0.5">الإدارة المدرسية</span>
-            <span className="block text-[10px] sm:text-sm text-emerald-100 font-medium">دخول المدير، الوكيل، والمشرف برقم الهاتف</span>
-          </div>
+          <span className="text-xs sm:text-base font-bold text-white transition-colors">الإدارة المدرسية</span>
         </motion.button>
       </div>
 
@@ -297,7 +336,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, teacher, onO
           <MessageCircle className="w-5 h-5 text-amber-300" />
           <span className="font-bold text-sm">الدعم الفني</span>
         </a>
-        <div className="text-sm font-black text-[#0f2b5c] tracking-wide">
+        <div className="text-sm font-bold text-[#0f2b5c] tracking-wide">
           إعداد وتصميم / علاء الوكيل
         </div>
       </div>

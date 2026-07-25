@@ -1,26 +1,27 @@
 import { StatusColors } from '../types';
 
 export const DEFAULT_STATUS_COLORS: StatusColors = {
-  present: '#10b981', // Emerald / Green
-  absent: '#f43f5e',  // Rose / Red
-  excused: '#f59e0b', // Amber / Yellow-Orange (تأجيل / بعذر)
+  present: '#047857', // Emerald-700 (Accessible Green)
+  absent: '#be123c',  // Rose-700 (Accessible Red)
+  excused: '#b45309', // Amber-700 (Accessible Orange)
 };
 
 export const COLOR_PRESETS = [
+  { name: 'أخضر داكن (افتراضي)', hex: '#047857' },
   { name: 'أخضر زمردي', hex: '#10b981' },
-  { name: 'أخضر غامق', hex: '#16a34a' },
-  { name: 'أزرق ملكي', hex: '#2563eb' },
+  { name: 'أزرق ملكي', hex: '#1d4ed8' },
   { name: 'أزرق سماوي', hex: '#0284c7' },
-  { name: 'أحمر وردي', hex: '#f43f5e' },
-  { name: 'أحمر قرمزي', hex: '#dc2626' },
-  { name: 'برتقالي دافئ', hex: '#f97316' },
-  { name: 'أصفر عنبري', hex: '#f59e0b' },
-  { name: 'أرجواني بنفسجي', hex: '#8b5cf6' },
-  { name: 'وردي زاهي', hex: '#ec4899' },
-  { name: 'رمادي داكن', hex: '#475569' },
+  { name: 'أحمر داكن (افتراضي)', hex: '#be123c' },
+  { name: 'أحمر وردي', hex: '#e11d48' },
+  { name: 'أحمر قرمزي', hex: '#b91c1c' },
+  { name: 'برتقالي داكن (افتراضي)', hex: '#b45309' },
+  { name: 'أصفر عنبري', hex: '#d97706' },
+  { name: 'أرجواني بنفسجي', hex: '#7e22ce' },
+  { name: 'وردي زاهي', hex: '#db2777' },
+  { name: 'رمادي داكن', hex: '#334155' },
 ];
 
-export const STATUS_COLORS_STORAGE_KEY = 'school_assessments_status_colors_v1';
+export const STATUS_COLORS_STORAGE_KEY = 'school_assessments_status_colors_v2';
 
 export function getStoredStatusColors(): StatusColors {
   try {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, AlertTriangle, Save, Sparkles, CheckCircle2, Layers, BookOpen, Clock, FileText, Mic, MicOff, Loader2 } from 'lucide-react';
+import { X, Calendar, AlertTriangle, Save, Sparkles, CheckCircle2, Layers, BookOpen, Clock, FileText, Mic, MicOff, Loader2, Zap } from 'lucide-react';
 import { MonthInfo, AssessmentRecord, TermId } from '../types';
 import { GRADES, CLASSES_COUNT, getFormModel, getFormDescription } from '../lib/constants';
 import { validateAssessmentTiming } from '../lib/validation';
@@ -195,14 +195,23 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-sm w-full p-5 relative my-8 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-sm w-full p-5 text-slate-800 transition-all relative my-auto animate-in fade-in zoom-in duration-200">
         
         {/* Modal Header */}
-        <div className="text-center mb-5">
-          <h2 className="text-lg font-bold text-slate-800">
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-base font-black text-slate-800">
             تسجيل تقييم رقم {assessNum}
           </h2>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-full transition-colors hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+            title="إغلاق"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Validation error notification banner */}
