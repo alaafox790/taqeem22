@@ -77,6 +77,21 @@ export interface AssessmentRecord {
   model_form?: 'أ' | 'ب' | 'ج' | 'عشوائي';
   is_holiday?: boolean;
   holiday_desc?: string;
+  is_archived?: boolean;
+  archived_at?: string;
+}
+
+export interface ArchivedTermItem {
+  id: string; // unique key, e.g. "2025/2026_term1" or "2025/2026_term1_الأول_1"
+  academicYear: string;
+  termId: TermId;
+  grade?: string; // Optional if for specific grade/class
+  classNum?: number;
+  archivedAt: string;
+  title: string;
+  recordsCount: number;
+  studentsCount?: number;
+  notes?: string;
 }
 
 export interface TimingCheckResult {

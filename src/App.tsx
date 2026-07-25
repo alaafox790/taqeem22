@@ -22,8 +22,9 @@ import { LoginScreen, ManagementLoginData } from './components/LoginScreen';
 import { HomeScreen } from './components/HomeScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { SplashScreen } from './components/SplashScreen';
+import { ArchiveManagerModal } from './components/ArchiveManagerModal';
 
-import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab, StatusColors, Reminder, Student } from './types';
+import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab, StatusColors, Reminder, Student, ArchivedTermItem } from './types';
 import { getAdjustedDueDate, isTeacherProfileComplete } from './lib/validation';
 import { DEFAULT_TEACHER, DEFAULT_ACADEMIC_YEAR, MONTHS_DATA } from './lib/constants';
 import { getStoredStatusColors, saveStoredStatusColors } from './lib/statusColors';
@@ -135,6 +136,87 @@ export default function App() {
   const [records, setRecords] = useState<AssessmentRecord[]>([]);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(true);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState<boolean>(false);
+
+  // Archive state & Vault storage
+  const ARCHIVED_TERMS_STORAGE_KEY = 'school_assessments_archived_terms_v1';
+  const [archivedTermsList, setArchivedTermsList] = useState<ArchivedTermItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(ARCHIVED_TERMS_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState<boolean>(false);
+
+  const handleArchiveTerm = (year: string, termId: TermId, grade?: string, classNum?: number) => {
+    const isClassSpecific = !!grade && classNum !== undefined;
+    const archivedId = isClassSpecific
+      ? `${year}_${termId}_${grade}_${classNum}`
+      : `${year}_${termId}`;
+
+    const title = isClassSpecific
+      ? `أرشيف الصف ${grade} (فصل ${classNum}) - ${termId === 'term1' ? 'الترم الأول' : 'الترم الثاني'}`
+      : `أرشيف ${termId === 'term1' ? 'الفصل الدراسي الأول' : 'الفصل الدراسي الثاني'} (${year})`;
+
+    const recordsToArchive = records.filter((r) => {
+      if (r.academic_year !== year || r.term_id !== termId || r.is_archived) return false;
+      if (isClassSpecific) {
+        return r.grade === grade && r.class_num === classNum;
+      }
+      return true;
+    });
+
+    const updatedRecords = records.map((r) => {
+      if (r.academic_year === year && r.term_id === termId && !r.is_archived) {
+        if (!isClassSpecific || (r.grade === grade && r.class_num === classNum)) {
+          const archivedRec = { ...r, is_archived: true, archived_at: new Date().toLocaleDateString('ar-EG') };
+          saveFirebaseAssessmentRecord(archivedRec).catch(console.error);
+          return archivedRec;
+        }
+      }
+      return r;
+    });
+
+    setRecords(updatedRecords);
+
+    const newItem: ArchivedTermItem = {
+      id: archivedId,
+      academicYear: year,
+      termId,
+      grade,
+      classNum,
+      archivedAt: new Date().toLocaleDateString('ar-EG'),
+      title,
+      recordsCount: recordsToArchive.length,
+    };
+
+    const updatedList = [newItem, ...archivedTermsList.filter((item) => item.id !== archivedId)];
+    setArchivedTermsList(updatedList);
+    localStorage.setItem(ARCHIVED_TERMS_STORAGE_KEY, JSON.stringify(updatedList));
+  };
+
+  const handleUnarchiveTerm = (archivedItemId: string, year: string, termId: TermId, grade?: string, classNum?: number) => {
+    const isClassSpecific = !!grade && classNum !== undefined;
+
+    const updatedRecords = records.map((r) => {
+      if (r.academic_year === year && r.term_id === termId && r.is_archived) {
+        if (!isClassSpecific || (r.grade === grade && r.class_num === classNum)) {
+          const restoredRec = { ...r, is_archived: false };
+          saveFirebaseAssessmentRecord(restoredRec).catch(console.error);
+          return restoredRec;
+        }
+      }
+      return r;
+    });
+
+    setRecords(updatedRecords);
+
+    const updatedList = archivedTermsList.filter((item) => item.id !== archivedItemId);
+    setArchivedTermsList(updatedList);
+    localStorage.setItem(ARCHIVED_TERMS_STORAGE_KEY, JSON.stringify(updatedList));
+  };
 
   // Custom Reminders state
   const REMINDERS_STORAGE_KEY = 'school_assessments_custom_reminders_v1';
@@ -614,6 +696,7 @@ export default function App() {
           activeTab={activeTab}
           onSelectTab={setActiveTab}
           onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenArchive={() => setIsArchiveModalOpen(true)}
           isFirebaseConnected={isFirebaseConnected}
           onLogout={handleLogout}
         />
@@ -765,6 +848,8 @@ export default function App() {
             <SettingsScreen 
               statusColors={statusColors}
               onSaveStatusColors={handleSaveStatusColors}
+              onOpenArchive={() => setIsArchiveModalOpen(true)}
+              archivedCount={archivedTermsList.length}
               showToast={(type, title, message) => setToast({ id: Date.now().toString(), type, title, message })}
             />
           </div>
@@ -892,6 +977,19 @@ export default function App() {
           setActiveTab('assessments');
           setIsRemindersModalOpen(false);
         }}
+      />
+
+      {/* Modal: Archive Vault & Manager */}
+      <ArchiveManagerModal
+        isOpen={isArchiveModalOpen}
+        onClose={() => setIsArchiveModalOpen(false)}
+        academicYear={academicYear}
+        selectedTerm={selectedTerm}
+        records={records}
+        archivedTermsList={archivedTermsList}
+        onArchiveTerm={handleArchiveTerm}
+        onUnarchiveTerm={handleUnarchiveTerm}
+        showToast={(type, title, message) => setToast({ id: Date.now().toString(), type, title, message })}
       />
 
       {/* Toast Notification */}

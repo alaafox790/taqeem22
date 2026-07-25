@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { Settings, Palette, RotateCcw, Check, RefreshCw, Eye, Sparkles, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Settings, Palette, RotateCcw, Check, RefreshCw, Eye, Sparkles, CheckCircle2, XCircle, Clock, FolderArchive, ArrowLeft } from 'lucide-react';
 import { StatusColors } from '../types';
 import { COLOR_PRESETS, DEFAULT_STATUS_COLORS } from '../lib/statusColors';
 
 interface SettingsScreenProps {
   statusColors: StatusColors;
   onSaveStatusColors: (newColors: StatusColors) => void;
+  onOpenArchive?: () => void;
+  archivedCount?: number;
   showToast?: (type: 'success' | 'error' | 'info', title: string, message?: string) => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   statusColors,
   onSaveStatusColors,
+  onOpenArchive,
+  archivedCount = 0,
   showToast,
 }) => {
   const [colors, setColors] = useState<StatusColors>(statusColors);
@@ -70,6 +74,36 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Archive Management Banner */}
+      {onOpenArchive && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-amber-500/10 border border-amber-300 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
+              <FolderArchive className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
+                <span>أرشفة الفصول والتقييمات التاريخية</span>
+                <span className="bg-amber-200 text-amber-900 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-300">
+                  ميزة هامة
+                </span>
+              </h3>
+              <p className="text-slate-600 text-xs font-medium mt-0.5">
+                يمكنك أرشفة الفصول الدراسية المنتهية لتقليل زحام الواجهة، مع إمكانية البحث والاطلاع على الأرشيف واسترجاعه في أي وقت.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onOpenArchive}
+            className="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-black text-xs rounded-xl shadow-md shadow-amber-600/20 transition-all flex items-center gap-2 shrink-0 cursor-pointer active:scale-95"
+          >
+            <FolderArchive className="w-4 h-4" />
+            <span>فتح حافظة الأرشيف</span>
+          </button>
+        </div>
+      )}
 
       {/* Main Settings Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

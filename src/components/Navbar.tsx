@@ -16,7 +16,8 @@ import {
   Shield,
   Wifi,
   WifiOff,
-  LogOut
+  LogOut,
+  FolderArchive
 } from 'lucide-react';
 import { TeacherProfile, AppTab } from '../types';
 import { isTeacherProfileComplete } from '../lib/validation';
@@ -81,6 +82,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
 
+
+            {/* Archive Button - Mobile */}
+            {onOpenArchive && (
+              <button
+                onClick={onOpenArchive}
+                className="flex md:hidden items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold shrink-0 shadow-xs cursor-pointer"
+                title="فتح حافظة الأرشيف"
+              >
+                <FolderArchive className="w-4 h-4 text-amber-600" />
+                <span>الأرشيف</span>
+              </button>
+            )}
 
             {/* Teacher Info Button - Mobile & Desktop */}
             <button
@@ -167,6 +180,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Left side: Teacher Profile & Status */}
           <div className="hidden md:flex items-center gap-2">
             
+            {/* Archive Button */}
+            {onOpenArchive && (
+              <button
+                onClick={onOpenArchive}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100/80 text-amber-900 border border-amber-200/90 font-bold text-xs transition-all shadow-xs cursor-pointer active:scale-95"
+                title="فتح حافظة الأرشيف التاريخي للفصول والتقييمات"
+              >
+                <FolderArchive className="w-4 h-4 text-amber-600" />
+                <span>الأرشيف</span>
+              </button>
+            )}
+
             {/* Connection Status Indicator */}
             <div 
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
