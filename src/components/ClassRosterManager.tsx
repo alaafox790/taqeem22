@@ -173,6 +173,28 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
     return [];
   });
 
+  // Listen for external roster/attendance updates (e.g., from App.tsx resetting assessments)
+  useEffect(() => {
+    const handleRosterUpdated = () => {
+      try {
+        const savedStudents = localStorage.getItem(ROSTER_STORAGE_KEY);
+        if (savedStudents) {
+          // Avoid overwriting state if it's identical to prevent infinite loops,
+          // though React 18 batches it. We'll just set it.
+          setStudents(JSON.parse(savedStudents));
+        }
+        const savedAttendance = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
+        if (savedAttendance) {
+          setAttendance(JSON.parse(savedAttendance));
+        }
+      } catch (e) {
+        console.error('Failed to sync from localStorage:', e);
+      }
+    };
+    window.addEventListener('roster_updated', handleRosterUpdated);
+    return () => window.removeEventListener('roster_updated', handleRosterUpdated);
+  }, []);
+
   // Modal & Focus Mode State
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -378,8 +400,12 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   // Save students roster to LocalStorage
   useEffect(() => {
     try {
-      localStorage.setItem(ROSTER_STORAGE_KEY, JSON.stringify(students));
-      window.dispatchEvent(new Event('roster_updated'));
+      const currentSaved = localStorage.getItem(ROSTER_STORAGE_KEY);
+      const newSaved = JSON.stringify(students);
+      if (currentSaved !== newSaved) {
+        localStorage.setItem(ROSTER_STORAGE_KEY, newSaved);
+        window.dispatchEvent(new Event('roster_updated'));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -388,8 +414,12 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   // Save attendance to LocalStorage
   useEffect(() => {
     try {
-      localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(attendance));
-      window.dispatchEvent(new Event('roster_updated'));
+      const currentSaved = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
+      const newSaved = JSON.stringify(attendance);
+      if (currentSaved !== newSaved) {
+        localStorage.setItem(ATTENDANCE_STORAGE_KEY, newSaved);
+        window.dispatchEvent(new Event('roster_updated'));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -455,7 +485,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
       for (const num of assessmentsToDisplay) {
         const isHoliday = records.some(r => 
           r.grade === selectedGrade && 
-          r.class_num.toString() === selectedClassNum && 
+          r.class_num === selectedClassNum && 
           r.term_id === selectedTerm && 
           r.assess_num === num && 
           r.is_holiday
@@ -756,14 +786,33 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   const renderAttendanceButton = (studentId: string, studentName: string, assessNum: number, serialNumber: number) => {
     const assignedModel = getStudentModel(studentId, serialNumber, assessNum, isRandomDistribution);
 
+    // Check if this assessment is registered
+    const isRegistered = records.some(r => 
+      r.grade === selectedGrade && 
+      r.class_num === selectedClassNum && 
+      r.term_id === selectedTerm && 
+      r.assess_num === assessNum
+    );
+
     // Check if this assessment is a holiday for this class
     const isHoliday = records.some(r => 
       r.grade === selectedGrade && 
-      r.class_num.toString() === selectedClassNum && 
+      r.class_num === selectedClassNum && 
       r.term_id === selectedTerm && 
       r.assess_num === assessNum && 
       r.is_holiday
     );
+
+    if (!isRegistered) {
+      return (
+        <div 
+          className="w-6 h-6 rounded-md flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-300 mx-auto cursor-not-allowed shadow-sm"
+          title="عفواً، يجب تسجيل هذا التقييم في قسم التقييمات أولاً قبل رصد الحضور"
+        >
+          <Minus className="w-3.5 h-3.5 opacity-50" />
+        </div>
+      );
+    }
 
     if (isHoliday) {
       return (
@@ -1017,14 +1066,6 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
                         <span>إظهار جميع التقييمات في الجدول</span>
                       </label>
                     </div>
-
-                    <button 
-                      onClick={() => setIsFocusMode(!isFocusMode)}
-                      className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer active:scale-95 shrink-0"
-                    >
-                      <Maximize2 className="w-3.5 h-3.5" />
-                      <span>تفعيل وضع التركيز 🎯</span>
-                    </button>
                   </div>
 
                   {selectedGrade && selectedClassNum && (
@@ -1051,16 +1092,25 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
               {activeControlTab === 'tools' && (
                 <div className="flex flex-col gap-4 animate-in fade-in duration-200">
                   {/* Danger Zone */}
-                  <div className="bg-rose-50/50 p-3 rounded-lg border border-rose-200 flex items-center gap-3">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors select-none">
-                      <input 
-                        type="checkbox" 
-                        checked={isClearAssessmentsChecked}
-                        onChange={handleClearAssessmentsCheckbox}
-                        className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-rose-300 cursor-pointer"
-                      />
-                      <span>إلغاء وتصفير كل التقييمات للطلاب (خطر)</span>
-                    </label>
+                  <div className="bg-rose-50/70 p-3 rounded-xl border border-rose-200/80 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2 text-rose-800 font-bold text-xs">
+                      <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>تصفير وإلغاء تقييمات الطلاب لهذا الفصل (الصف {selectedGrade || '...'} فصل {selectedClassNum || '...'})</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedGrade || !selectedClassNum) {
+                          setErrorMessage('يرجى اختيار الصف والفصل أولاً قبل إلغاء التقييمات.');
+                          return;
+                        }
+                        setShowClearAssessmentsWarning(true);
+                      }}
+                      className="w-full sm:w-auto px-3.5 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-xs rounded-lg transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>تصفير تقييمات هذا الفصل</span>
+                    </button>
                   </div>
 
                   {/* Batch Tools */}

@@ -125,3 +125,40 @@ export function getAdjustedDueDate(year: number, month: number, originalDueDate:
   
   return adjustedDueDate;
 }
+
+/**
+ * Checks if a given date string falls on an official holiday, weekend, or teacher-registered holiday
+ */
+export function checkOfficialHoliday(
+  dateString: string,
+  teacherHolidays?: string[]
+): { isHoliday: boolean; reason: string } {
+  if (!dateString) return { isHoliday: false, reason: '' };
+
+  const dateObj = new Date(dateString);
+  if (isNaN(dateObj.getTime())) return { isHoliday: false, reason: '' };
+
+  const dayOfWeek = dateObj.getDay(); // 0 = Sun, 5 = Fri, 6 = Sat
+
+  if (dayOfWeek === 5) {
+    return { isHoliday: true, reason: 'يوم الجمعة (إجازة أسبوعية رسمية)' };
+  }
+  if (dayOfWeek === 6) {
+    return { isHoliday: true, reason: 'يوم السبت (إجازة أسبوعية)' };
+  }
+
+  // Check teacher's configured official holidays
+  if (teacherHolidays && teacherHolidays.length > 0) {
+    const matched = teacherHolidays.find(
+      (h) => h === dateString || (h && h.trim() && dateString.includes(h.trim()))
+    );
+    if (matched) {
+      return {
+        isHoliday: true,
+        reason: `عطلة رسمية مسجلة في بيانات المعلم (${matched})`,
+      };
+    }
+  }
+
+  return { isHoliday: false, reason: '' };
+}

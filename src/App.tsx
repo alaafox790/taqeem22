@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { RotateCcw, Trash2, AlertTriangle, X } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { ControlBar } from './components/ControlBar';
 import { AssessmentGrid } from './components/AssessmentGrid';
@@ -32,6 +33,7 @@ import {
   deleteFirebaseAssessmentRecord,
   testFirebaseConnection,
   fetchFirebaseAttendance,
+  deleteFirebaseAttendance,
   fetchFirebaseStudents,
   saveFirebaseTeacher,
 } from './lib/firebase';
@@ -132,6 +134,7 @@ export default function App() {
   // Records archive state
   const [records, setRecords] = useState<AssessmentRecord[]>([]);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(true);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState<boolean>(false);
 
   // Custom Reminders state
   const REMINDERS_STORAGE_KEY = 'school_assessments_custom_reminders_v1';
@@ -276,6 +279,7 @@ export default function App() {
     partialRecord: Partial<AssessmentRecord>,
     isExceptionalConfirmed?: boolean
   ) => {
+    // Check if an assessment record already exists for the exact same grade, class, and assessment number
     const duplicate = records.find(
       (r) =>
         r.teacher_id === teacher.id &&
@@ -291,6 +295,27 @@ export default function App() {
         existingRecord: duplicate,
         pendingRecord: partialRecord,
       });
+      return;
+    }
+
+    // Check if another assessment was already recorded on the SAME DATE for the same class
+    const sameDateDuplicate = records.find(
+      (r) =>
+        r.teacher_id === teacher.id &&
+        r.academic_year === academicYear &&
+        r.grade === partialRecord.grade &&
+        r.class_num === partialRecord.class_num &&
+        r.assess_date === partialRecord.assess_date &&
+        r.assess_num !== partialRecord.assess_num &&
+        r.term_id === selectedTerm
+    );
+
+    if (sameDateDuplicate) {
+      showToast(
+        'error',
+        'تاريخ مكرر لنفس الفصل ⚠️',
+        `تم تسجيل التقييم رقم (${sameDateDuplicate.assess_num}) للصف ${partialRecord.grade} فصل ${partialRecord.class_num} بنفس التاريخ (${partialRecord.assess_date}). لا يجوز تسجيل أكثر من تقييم لنفس الفصل في نفس اليوم!`
+      );
       return;
     }
 
@@ -352,6 +377,103 @@ export default function App() {
     await deleteFirebaseAssessmentRecord(id);
     await loadData();
     showToast('info', 'تم حذف التقييم', 'تم إزالة التقييم المحدد من أرشيف السجلات.');
+  };
+
+  const handleResetAssessmentsForMonth = async () => {
+    try {
+      const assessmentsToReset = dynamicSelectedMonth.assessments;
+
+      // Filter records matching selected term AND (selected month ID or assessment numbers of this month)
+      const recordsToDelete = records.filter(
+        r => r.term_id === selectedTerm && (r.month_id === selectedMonth.id || assessmentsToReset.includes(r.assess_num))
+      );
+      
+      const newRecords = records.filter(
+        r => !(r.term_id === selectedTerm && (r.month_id === selectedMonth.id || assessmentsToReset.includes(r.assess_num)))
+      );
+      setRecords(newRecords);
+
+      // Clean local records storage
+      const ARCHIVE_STORAGE_KEY = 'school_assessments_archive_v1';
+      localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(newRecords));
+      
+      // Clean up localStorage attendance
+      const ATTENDANCE_STORAGE_KEY = 'school_assessments_attendance_v1';
+      let localAttendance: any[] = [];
+      try {
+        const saved = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
+        if (saved) localAttendance = JSON.parse(saved);
+      } catch(e) {}
+      
+      const attendanceToDelete = localAttendance.filter(a => a.month_id === selectedTerm && assessmentsToReset.includes(a.assess_num));
+      const newAttendance = localAttendance.filter(a => !(a.month_id === selectedTerm && assessmentsToReset.includes(a.assess_num)));
+      
+      localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(newAttendance));
+      window.dispatchEvent(new Event('roster_updated'));
+
+      // Delete from Firebase (Firestore handles offline caching automatically)
+      for (const r of recordsToDelete) {
+        await deleteFirebaseAssessmentRecord(r.id);
+      }
+      for (const a of attendanceToDelete) {
+        if (a.id) {
+          await deleteFirebaseAttendance(a.id);
+        }
+      }
+      setShowResetConfirmModal(false);
+      showToast('success', 'تم تصفير التقييمات', `تم مسح كافة التقييمات وحضورها المسجل لشهر ${dynamicSelectedMonth.name} بنجاح.`);
+    } catch (e) {
+      console.error("Failed to reset assessments", e);
+      showToast('error', 'خطأ في المسح', 'حدث خطأ أثناء محاولة مسح التقييمات. حاول مرة أخرى.');
+    }
+  };
+
+  const handleDeleteAssessmentForClass = async (grade: string, classNum: number, assessNum: number) => {
+    try {
+      const recordsToDelete = records.filter(
+        r => r.grade === grade && r.class_num === classNum && r.assess_num === assessNum && r.term_id === selectedTerm
+      );
+      
+      const newRecords = records.filter(
+        r => !(r.grade === grade && r.class_num === classNum && r.assess_num === assessNum && r.term_id === selectedTerm)
+      );
+      setRecords(newRecords);
+
+      const ARCHIVE_STORAGE_KEY = 'school_assessments_archive_v1';
+      localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(newRecords));
+
+      // Clean attendance
+      const ATTENDANCE_STORAGE_KEY = 'school_assessments_attendance_v1';
+      let localAttendance: any[] = [];
+      try {
+        const saved = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
+        if (saved) localAttendance = JSON.parse(saved);
+      } catch(e) {}
+
+      const attendanceToDelete = localAttendance.filter(
+        a => a.grade === grade && a.class_num === classNum && a.assess_num === assessNum && a.month_id === selectedTerm
+      );
+      const newAttendance = localAttendance.filter(
+        a => !(a.grade === grade && a.class_num === classNum && a.assess_num === assessNum && a.month_id === selectedTerm)
+      );
+
+      localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(newAttendance));
+      window.dispatchEvent(new Event('roster_updated'));
+
+      for (const r of recordsToDelete) {
+        await deleteFirebaseAssessmentRecord(r.id);
+      }
+      for (const a of attendanceToDelete) {
+        if (a.id) {
+          await deleteFirebaseAttendance(a.id);
+        }
+      }
+
+      showToast('info', 'تم التراجع عن التقييم', `تم مسح تقييم ${assessNum} للصف ${grade} فصل ${classNum} بنجاح.`);
+    } catch (e) {
+      console.error('Failed to delete assessment for class:', e);
+      showToast('error', 'خطأ في المسح', 'حدث خطأ أثناء محاولة التراجع عن التقييم.');
+    }
   };
 
   // Auto-Reminder for upcoming assessments (Toast & Local Push Notification)
@@ -556,6 +678,26 @@ export default function App() {
                 teacherId={teacher.id}
                 teacher={teacher}
               />
+              
+              <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-rose-50/50 rounded-b-xl">
+                <div className="flex items-center gap-2.5 text-rose-900 font-bold text-sm">
+                  <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+                    <RotateCcw className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-rose-900">تصفير تقييمات الشهر</p>
+                    <p className="text-xs font-medium text-rose-700">مسح كافة التقييمات وحضور الطلاب المسجل لشهر {dynamicSelectedMonth.name}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirmModal(true)}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>تصفير تقييمات {dynamicSelectedMonth.name}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -664,8 +806,55 @@ export default function App() {
           academicYear={academicYear}
           selectedTerm={selectedTerm}
           teacherId={teacher.id}
+          teacher={teacher}
+          records={records}
           onSave={handleAssessmentSubmit}
+          onDeleteAssessmentForClass={handleDeleteAssessmentForClass}
         />
+      )}
+
+      {/* Confirmation Modal for Resetting Month Assessments */}
+      {showResetConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 text-slate-800 shadow-2xl border border-slate-100 relative animate-in zoom-in-95 duration-150">
+            <button
+              onClick={() => setShowResetConfirmModal(false)}
+              className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mb-4">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-lg font-black text-slate-900 mb-2">
+              تصفير تقييمات شهر {dynamicSelectedMonth.name}
+            </h3>
+
+            <p className="text-sm font-medium text-slate-600 mb-6 leading-relaxed">
+              هل أنت متأكد من مسح جميع التقييمات المسجلة وحضور الطلاب لهذا الشهر (شهر {dynamicSelectedMonth.name})؟ سيتم حذف كافة السجلات التابعة من قاعدة البيانات المحلية والمزامنة، ولا يمكن التراجع عن هذه الخطوة.
+            </p>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleResetAssessmentsForMonth}
+                className="flex-1 py-3 px-4 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>نعم، مسح وتصفير الكل</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-bold text-sm rounded-xl transition-all cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal: Teacher Profile & DB Settings */}
