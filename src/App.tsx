@@ -26,6 +26,7 @@ import { SettingsScreen } from './components/SettingsScreen';
 import { SplashScreen } from './components/SplashScreen';
 import { ArchiveManagerModal } from './components/ArchiveManagerModal';
 import { ClearAssessmentsModal, ClearAssessmentsOptions, isRecordInMonth, isRecordInMonthRange } from './components/ClearAssessmentsModal';
+import { AnnualReportPdfModal } from './components/AnnualReportPdfModal';
 
 import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab, StatusColors, Reminder, Student, ArchivedTermItem } from './types';
 import { playSuccessSoundAndVibrate, playAlertSoundAndVibrate } from './lib/sound';
@@ -239,6 +240,9 @@ export default function App() {
   });
   const [isRemindersModalOpen, setIsRemindersModalOpen] = useState(false);
   const [isTeacherMessagesModalOpen, setIsTeacherMessagesModalOpen] = useState(false);
+  const [isAppAnnualReportOpen, setIsAppAnnualReportOpen] = useState(false);
+  const [appAnnualGrade, setAppAnnualGrade] = useState<string>('الأول');
+  const [appAnnualClassNum, setAppAnnualClassNum] = useState<number | ''>(1);
 
   const handleAddReminder = (newRem: { title: string; description?: string; targetType: 'student' | 'class' | 'general'; targetName?: string; reminderDate: string; notifyStudents?: boolean }) => {
     const reminder: Reminder = {
@@ -1088,6 +1092,16 @@ export default function App() {
       <TeacherMessagesModal
         isOpen={isTeacherMessagesModalOpen}
         onClose={() => setIsTeacherMessagesModalOpen(false)}
+        teacher={teacher}
+      />
+
+      {/* Modal: Annual Cumulative PDF Report */}
+      <AnnualReportPdfModal
+        isOpen={isAppAnnualReportOpen}
+        onClose={() => setIsAppAnnualReportOpen(false)}
+        selectedGrade={appAnnualGrade}
+        selectedClassNum={appAnnualClassNum}
+        records={records}
         teacher={teacher}
       />
 
