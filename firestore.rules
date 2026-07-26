@@ -20,6 +20,14 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+    match /reminders/{reminderId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /messages/{messageId} {
+      allow read: if true;
+      allow write: if true;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

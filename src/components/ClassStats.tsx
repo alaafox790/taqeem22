@@ -25,14 +25,17 @@ const getSubjectIcon = (iconName?: string, className: string = "w-6 h-6 text-ind
 
 
 import { TeacherProfile } from '../types';
+import { RemedialPlanSection } from './RemedialPlanSection';
 
 interface ClassStatsProps {
   records: AssessmentRecord[];
   selectedTerm: TermId;
   teacher: TeacherProfile;
+  onAddReminder?: (reminder: { title: string; description?: string; targetType: 'student' | 'class' | 'general'; targetName?: string; reminderDate: string }) => void;
 }
 
-export const ClassStats: React.FC<ClassStatsProps> = ({ records, selectedTerm, teacher }) => {
+export const ClassStats: React.FC<ClassStatsProps> = ({ records, selectedTerm, teacher, onAddReminder }) => {
+
   const [localStorageKey, setLocalStorageKey] = React.useState(0);
 
   // Re-read local storage on mount, tab activation, or roster updates
@@ -438,6 +441,17 @@ export const ClassStats: React.FC<ClassStatsProps> = ({ records, selectedTerm, t
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Remedial Plan Analysis & Management Section */}
+      <div className="mt-6 border-t border-slate-100 pt-6">
+        <RemedialPlanSection 
+          records={records}
+          selectedTerm={selectedTerm}
+          teacher={teacher}
+          onAddReminder={onAddReminder}
+        />
+      </div>
     </div>
   );
 };
+

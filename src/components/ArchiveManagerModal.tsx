@@ -169,8 +169,8 @@ export const ArchiveManagerModal: React.FC<ArchiveManagerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm dir-rtl animate-in fade-in">
-      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 w-screen h-screen max-w-full overflow-y-auto bg-slate-950/70 backdrop-blur-sm p-3 sm:p-4 dir-rtl flex items-center justify-center min-h-full animate-in fade-in">
+      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] my-auto shrink-0">
         
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white p-5 sm:p-6 flex items-center justify-between gap-4 shrink-0 relative overflow-hidden">
@@ -410,7 +410,7 @@ export const ArchiveManagerModal: React.FC<ArchiveManagerModalProps> = ({
                         onChange={(e) => setTargetClassNum(Number(e.target.value))}
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800"
                       >
-                        {CLASSES_COUNT.map((num) => (
+                        {Array.from({ length: CLASSES_COUNT }, (_, i) => i + 1).map((num) => (
                           <option key={num} value={num}>
                             فصل {num}
                           </option>

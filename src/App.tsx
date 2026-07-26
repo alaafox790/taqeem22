@@ -16,15 +16,19 @@ import { AssessmentModal } from './components/AssessmentModal';
 import { DuplicateConfirmModal } from './components/DuplicateConfirmModal';
 import { TeacherProfileModal } from './components/TeacherProfileModal';
 import { RemindersModal } from './components/RemindersModal';
+import { TeacherMessagesModal } from './components/TeacherMessagesModal';
 import { Toast, ToastMessage } from './components/Toast';
-import { LoginScreen, ManagementLoginData } from './components/LoginScreen';
+import { LoginScreen, ManagementLoginData, StudentLoginData } from './components/LoginScreen';
+import { StudentPortal } from './components/StudentPortal';
 
 import { HomeScreen } from './components/HomeScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { SplashScreen } from './components/SplashScreen';
 import { ArchiveManagerModal } from './components/ArchiveManagerModal';
+import { ClearAssessmentsModal, ClearAssessmentsOptions, isRecordInMonth, isRecordInMonthRange } from './components/ClearAssessmentsModal';
 
 import { TeacherProfile, AssessmentRecord, MonthInfo, TermId, AppTab, StatusColors, Reminder, Student, ArchivedTermItem } from './types';
+import { playSuccessSoundAndVibrate, playAlertSoundAndVibrate } from './lib/sound';
 import { getAdjustedDueDate, isTeacherProfileComplete } from './lib/validation';
 import { DEFAULT_TEACHER, DEFAULT_ACADEMIC_YEAR, MONTHS_DATA } from './lib/constants';
 import { getStoredStatusColors, saveStoredStatusColors } from './lib/statusColors';
@@ -37,6 +41,9 @@ import {
   deleteFirebaseAttendance,
   fetchFirebaseStudents,
   saveFirebaseTeacher,
+  saveFirebaseReminder,
+  fetchFirebaseReminders,
+  deleteFirebaseReminder,
 } from './lib/firebase';
 
 const AUTH_STORAGE_KEY = 'school_assessments_auth_v1';
@@ -50,6 +57,7 @@ export default function App() {
     return localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
   });
   const [managementSession, setManagementSession] = useState<ManagementSessionData | null>(null);
+  const [studentSession, setStudentSession] = useState<StudentLoginData | null>(null);
 
   // Navigation tab state (4 screens + countdown)
   const [activeTab, setActiveTab] = useState<AppTab>('home');
@@ -230,6 +238,7 @@ export default function App() {
     return [];
   });
   const [isRemindersModalOpen, setIsRemindersModalOpen] = useState(false);
+  const [isTeacherMessagesModalOpen, setIsTeacherMessagesModalOpen] = useState(false);
 
   const handleAddReminder = (newRem: { title: string; description?: string; targetType: 'student' | 'class' | 'general'; targetName?: string; reminderDate: string; notifyStudents?: boolean }) => {
     const reminder: Reminder = {
@@ -241,20 +250,32 @@ export default function App() {
     const updated = [reminder, ...reminders];
     setReminders(updated);
     localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(updated));
-    showToast('success', 'تم إضافة التنبيه', 'تم جدولة التنبيه بنجاح وسيظهر في موعده المحدد.');
+    saveFirebaseReminder(reminder, teacher.id || 'default_teacher').catch(console.error);
+    showToast('success', 'تم إضافة التنبيه', 'تم جدولة التنبيه بنجاح ونشره للطالب والمعلم.');
   };
 
   const handleDeleteReminder = (id: string) => {
     const updated = reminders.filter(r => r.id !== id);
     setReminders(updated);
     localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(updated));
+    deleteFirebaseReminder(id).catch(console.error);
     showToast('info', 'تم حذف التنبيه', 'تم إزالة التنبيه من القائمة.');
   };
 
   const handleToggleReminderComplete = (id: string) => {
-    const updated = reminders.map(r => r.id === id ? { ...r, isCompleted: !r.isCompleted } : r);
+    let updatedItem: Reminder | undefined;
+    const updated = reminders.map(r => {
+      if (r.id === id) {
+        updatedItem = { ...r, isCompleted: !r.isCompleted };
+        return updatedItem;
+      }
+      return r;
+    });
     setReminders(updated);
     localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(updated));
+    if (updatedItem) {
+      saveFirebaseReminder(updatedItem, teacher.id || 'default_teacher').catch(console.error);
+    }
   };
 
   // Modal UI states
@@ -274,16 +295,28 @@ export default function App() {
   // Test Firebase on startup
   const loadData = useCallback(async () => {
     try {
-      const firebaseData = await fetchFirebaseRecords(teacher.id);
+      const firebaseData = await fetchFirebaseRecords(teacher.id, teacher.phone);
       if (firebaseData) {
         setRecords(firebaseData);
       }
+      
+      const firebaseReminders = await fetchFirebaseReminders(teacher.id, teacher.phone);
+      if (firebaseReminders && firebaseReminders.length > 0) {
+        setReminders(prev => {
+          const map = new Map<string, Reminder>();
+          prev.forEach(r => map.set(r.id, r));
+          firebaseReminders.forEach(r => map.set(r.id, r));
+          const merged = Array.from(map.values());
+          localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(merged));
+          return merged;
+        });
+      }
     } catch (err) {
-      console.error('Error fetching records:', err);
+      console.error('Error fetching records or reminders:', err);
     }
 
     setIsFirebaseConnected(true);
-  }, [teacher.id]);
+  }, [teacher.id, teacher.phone]);
   useEffect(() => {
     testFirebaseConnection();
     setIsFirebaseConnected(navigator.onLine);
@@ -354,6 +387,11 @@ export default function App() {
       title,
       message,
     });
+    if (type === 'success') {
+      playSuccessSoundAndVibrate();
+    } else if (type === 'error' || title.includes('تنبيه') || title.includes('مكرر') || title.includes('متأخر')) {
+      playAlertSoundAndVibrate();
+    }
   };
 
   // Handler: Attempting to save an assessment record
@@ -461,39 +499,74 @@ export default function App() {
     showToast('info', 'تم حذف التقييم', 'تم إزالة التقييم المحدد من أرشيف السجلات.');
   };
 
-  const handleResetAssessmentsForMonth = async () => {
+  const handleExecuteCustomClearAssessmentRecords = async (
+    options: ClearAssessmentsOptions,
+    countToDelete: number
+  ) => {
     try {
-      const assessmentsToReset = dynamicSelectedMonth.assessments;
+      const { clearScope, singleMonthId, startMonthId, endMonthId, termFilter, gradeFilter } = options;
 
-      // Filter records matching selected term AND (selected month ID or assessment numbers of this month)
-      const recordsToDelete = records.filter(
-        r => r.term_id === selectedTerm && (r.month_id === selectedMonth.id || assessmentsToReset.includes(r.assess_num))
-      );
-      
-      const newRecords = records.filter(
-        r => !(r.term_id === selectedTerm && (r.month_id === selectedMonth.id || assessmentsToReset.includes(r.assess_num)))
-      );
+      // Filter matching assessment records to delete
+      const recordsToDelete = records.filter((r) => {
+        if (termFilter !== 'all' && r.term_id !== termFilter) return false;
+        if (gradeFilter !== 'all' && r.grade !== gradeFilter) return false;
+
+        if (clearScope === 'all') return true;
+        if (clearScope === 'single') return isRecordInMonth(r, singleMonthId);
+        if (clearScope === 'range') return isRecordInMonthRange(r, startMonthId, endMonthId);
+
+        return true;
+      });
+
+      const idsToDelete = new Set(recordsToDelete.map((r) => r.id));
+      const newRecords = records.filter((r) => !idsToDelete.has(r.id));
       setRecords(newRecords);
 
-      // Clean local records storage
+      // Save updated records in localStorage
       const ARCHIVE_STORAGE_KEY = 'school_assessments_archive_v1';
       localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(newRecords));
-      
-      // Clean up localStorage attendance
+
+      // Delete matching attendance entries
       const ATTENDANCE_STORAGE_KEY = 'school_assessments_attendance_v1';
       let localAttendance: any[] = [];
       try {
         const saved = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
         if (saved) localAttendance = JSON.parse(saved);
-      } catch(e) {}
-      
-      const attendanceToDelete = localAttendance.filter(a => a.month_id === selectedTerm && assessmentsToReset.includes(a.assess_num));
-      const newAttendance = localAttendance.filter(a => !(a.month_id === selectedTerm && assessmentsToReset.includes(a.assess_num)));
-      
+      } catch (e) {}
+
+      const targetMonthIds = new Set<string>();
+      if (clearScope === 'single') {
+        targetMonthIds.add(singleMonthId);
+      } else if (clearScope === 'range') {
+        const sIdx = MONTHS_DATA.findIndex((m) => m.id === startMonthId);
+        const eIdx = MONTHS_DATA.findIndex((m) => m.id === endMonthId);
+        if (sIdx !== -1 && eIdx !== -1) {
+          const minIdx = Math.min(sIdx, eIdx);
+          const maxIdx = Math.max(sIdx, eIdx);
+          MONTHS_DATA.slice(minIdx, maxIdx + 1).forEach((m) => targetMonthIds.add(m.id));
+        }
+      }
+
+      const attendanceToDelete = localAttendance.filter((a) => {
+        if (gradeFilter !== 'all' && a.grade !== gradeFilter) return false;
+
+        if (clearScope === 'all') return true;
+
+        if (clearScope === 'single' || clearScope === 'range') {
+          if (targetMonthIds.has(a.month_id)) return true;
+          const matchedMonth = MONTHS_DATA.find((m) => targetMonthIds.has(m.id));
+          if (matchedMonth && matchedMonth.assessments.includes(a.assess_num)) return true;
+        }
+        return false;
+      });
+
+      const attIdsToDelete = new Set(attendanceToDelete.map((a) => a.id).filter(Boolean));
+      const newAttendance = localAttendance.filter((a) => !a.id || !attIdsToDelete.has(a.id));
       localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(newAttendance));
+
       window.dispatchEvent(new Event('roster_updated'));
 
-      // Delete from Firebase (Firestore handles offline caching automatically)
+      // Firebase Firestore deletions
       for (const r of recordsToDelete) {
         await deleteFirebaseAssessmentRecord(r.id);
       }
@@ -502,11 +575,27 @@ export default function App() {
           await deleteFirebaseAttendance(a.id);
         }
       }
+
       setShowResetConfirmModal(false);
-      showToast('success', 'تم تصفير التقييمات', `تم مسح كافة التقييمات وحضورها المسجل لشهر ${dynamicSelectedMonth.name} بنجاح.`);
+
+      let scopeLabel = 'كافة الشهور والتقييمات';
+      if (clearScope === 'single') {
+        const mName = MONTHS_DATA.find((m) => m.id === singleMonthId)?.name || 'المحدد';
+        scopeLabel = `شهر ${mName}`;
+      } else if (clearScope === 'range') {
+        const sName = MONTHS_DATA.find((m) => m.id === startMonthId)?.name.split(' ')[0] || '';
+        const eName = MONTHS_DATA.find((m) => m.id === endMonthId)?.name.split(' ')[0] || '';
+        scopeLabel = `المدة من ${sName} إلى ${eName}`;
+      }
+
+      showToast(
+        'success',
+        'تم مسح وتصفير التقييمات بنجاح 🗑️',
+        `تم مسح (${recordsToDelete.length}) سجل تقييم وحضور لـ (${scopeLabel}) نهائياً.`
+      );
     } catch (e) {
-      console.error("Failed to reset assessments", e);
-      showToast('error', 'خطأ في المسح', 'حدث خطأ أثناء محاولة مسح التقييمات. حاول مرة أخرى.');
+      console.error('Failed to execute custom clear:', e);
+      showToast('error', 'خطأ في المسح', 'حدث خطأ أثناء محاولة مسح التقييمات.');
     }
   };
 
@@ -645,15 +734,19 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [isAuthenticated, records]);
 
-  const handleLogin = (phone: string, managementData?: ManagementLoginData) => {
+  const handleLogin = (
+    phone: string, 
+    managementData?: ManagementLoginData,
+    studentData?: StudentLoginData
+  ) => {
     setIsAuthenticated(true);
     localStorage.setItem(AUTH_STORAGE_KEY, 'true');
-    if (!teacher.phone) {
-      setTeacher({ ...teacher, phone });
-      localStorage.setItem(TEACHER_STORAGE_KEY, JSON.stringify({ ...teacher, phone }));
-    }
 
-    if (managementData?.isManagement) {
+    if (studentData?.isStudent) {
+      setStudentSession(studentData);
+      setManagementSession(null);
+    } else if (managementData?.isManagement) {
+      setStudentSession(null);
       const sessionData: ManagementSessionData = {
         isManagement: true,
         role: managementData.role,
@@ -664,13 +757,19 @@ export default function App() {
       setManagementSession(sessionData);
       setActiveTab('admin');
     } else {
+      setStudentSession(null);
       setManagementSession(null);
+      if (!teacher.phone) {
+        setTeacher({ ...teacher, phone });
+        localStorage.setItem(TEACHER_STORAGE_KEY, JSON.stringify({ ...teacher, phone }));
+      }
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setManagementSession(null);
+    setStudentSession(null);
     localStorage.setItem(AUTH_STORAGE_KEY, 'false');
   };
 
@@ -682,8 +781,20 @@ export default function App() {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
+  if (studentSession) {
+    return (
+      <StudentPortal
+        phone={studentSession.phone}
+        studentCode={studentSession.studentCode}
+        teacher={teacher}
+        academicYear={academicYear}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#fafcff] text-slate-800 font-['Tajawal',sans-serif] pb-16 dir-rtl transition-colors duration-200">
+    <div className="min-h-screen max-w-full overflow-x-hidden bg-[#fafcff] text-slate-800 font-['Tajawal',sans-serif] pb-16 dir-rtl transition-colors duration-200">
       
       {/* Opening Splash Screen */}
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
@@ -697,6 +808,7 @@ export default function App() {
           onSelectTab={setActiveTab}
           onOpenProfile={() => setIsProfileOpen(true)}
           onOpenArchive={() => setIsArchiveModalOpen(true)}
+          onOpenStudentMessages={() => setIsTeacherMessagesModalOpen(true)}
           isFirebaseConnected={isFirebaseConnected}
           onLogout={handleLogout}
         />
@@ -711,6 +823,8 @@ export default function App() {
             onNavigate={setActiveTab} 
             teacher={teacher} 
             onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenArchive={() => setIsArchiveModalOpen(true)}
+            onOpenStudentMessages={() => setIsTeacherMessagesModalOpen(true)}
             records={records}
             selectedTerm={selectedTerm}
             academicYear={academicYear}
@@ -760,6 +874,7 @@ export default function App() {
                 academicYear={academicYear}
                 teacherId={teacher.id}
                 teacher={teacher}
+                showToast={showToast}
               />
               
               <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-rose-50/50 rounded-b-xl">
@@ -768,8 +883,8 @@ export default function App() {
                     <RotateCcw className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-rose-900">تصفير تقييمات الشهر</p>
-                    <p className="text-xs font-medium text-rose-700">مسح كافة التقييمات وحضور الطلاب المسجل لشهر {dynamicSelectedMonth.name}</p>
+                    <p className="text-sm font-black text-rose-900">مسح وتصفير التقييمات المخصص</p>
+                    <p className="text-xs font-medium text-rose-700">مسح الشهور بالكامل، شهر معين، أو نطاق شهور مخصص من وإلى</p>
                   </div>
                 </div>
                 <button
@@ -778,7 +893,7 @@ export default function App() {
                   className="w-full sm:w-auto px-4 py-2.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
-                  <span>تصفير تقييمات {dynamicSelectedMonth.name}</span>
+                  <span>تصفير ومسح التقييمات...</span>
                 </button>
               </div>
             </div>
@@ -810,7 +925,9 @@ export default function App() {
               records={records}
               selectedTerm={selectedTerm}
               teacher={teacher}
+              onAddReminder={handleAddReminder}
             />
+
             
             <div className="flex justify-center w-full">
               <div className="w-full max-w-2xl">
@@ -838,19 +955,28 @@ export default function App() {
             <StudentReportsScreen 
               records={records}
               selectedTerm={selectedTerm}
+              teacher={teacher}
+              onOpenStudentMessages={() => setIsTeacherMessagesModalOpen(true)}
             />
           </div>
         )}
 
-        {/* SCREEN 5: تخصيص الألوان (Settings & Color Customization) */}
+        {/* SCREEN 5: تخصيص الألوان والنسخ الاحتياطي (Settings & Cloud Sync) */}
         {activeTab === 'settings' && (
           <div className="animate-fadeIn">
             <SettingsScreen 
               statusColors={statusColors}
               onSaveStatusColors={handleSaveStatusColors}
               onOpenArchive={() => setIsArchiveModalOpen(true)}
+              onOpenCustomClearModal={() => setShowResetConfirmModal(true)}
               archivedCount={archivedTermsList.length}
               showToast={(type, title, message) => setToast({ id: Date.now().toString(), type, title, message })}
+              records={records}
+              teacher={teacher}
+              isFirebaseConnected={isFirebaseConnected}
+              onManualCloudSync={async () => {
+                await testFirebaseConnection();
+              }}
             />
           </div>
         )}
@@ -898,49 +1024,15 @@ export default function App() {
         />
       )}
 
-      {/* Confirmation Modal for Resetting Month Assessments */}
-      {showResetConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 text-slate-800 shadow-2xl border border-slate-100 relative animate-in zoom-in-95 duration-150">
-            <button
-              onClick={() => setShowResetConfirmModal(false)}
-              className="absolute top-4 left-4 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mb-4">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-
-            <h3 className="text-lg font-black text-slate-900 mb-2">
-              تصفير تقييمات شهر {dynamicSelectedMonth.name}
-            </h3>
-
-            <p className="text-sm font-medium text-slate-600 mb-6 leading-relaxed">
-              هل أنت متأكد من مسح جميع التقييمات المسجلة وحضور الطلاب لهذا الشهر (شهر {dynamicSelectedMonth.name})؟ سيتم حذف كافة السجلات التابعة من قاعدة البيانات المحلية والمزامنة، ولا يمكن التراجع عن هذه الخطوة.
-            </p>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleResetAssessmentsForMonth}
-                className="flex-1 py-3 px-4 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>نعم، مسح وتصفير الكل</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowResetConfirmModal(false)}
-                className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-bold text-sm rounded-xl transition-all cursor-pointer"
-              >
-                إلغاء
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal for Custom Clear Assessments */}
+      <ClearAssessmentsModal
+        isOpen={showResetConfirmModal}
+        onClose={() => setShowResetConfirmModal(false)}
+        records={records}
+        selectedTerm={selectedTerm}
+        defaultMonthId={selectedMonth.id}
+        onConfirmClear={handleExecuteCustomClearAssessmentRecords}
+      />
 
       {/* Modal: Teacher Profile & DB Settings */}
       <TeacherProfileModal
@@ -990,6 +1082,13 @@ export default function App() {
         onArchiveTerm={handleArchiveTerm}
         onUnarchiveTerm={handleUnarchiveTerm}
         showToast={(type, title, message) => setToast({ id: Date.now().toString(), type, title, message })}
+      />
+
+      {/* Modal: Teacher In-App Student Messages */}
+      <TeacherMessagesModal
+        isOpen={isTeacherMessagesModalOpen}
+        onClose={() => setIsTeacherMessagesModalOpen(false)}
+        teacher={teacher}
       />
 
       {/* Toast Notification */}

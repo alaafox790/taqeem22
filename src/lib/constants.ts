@@ -2,7 +2,7 @@ import { MonthInfo, TermId, TeacherProfile } from '../types';
 
 export const STAGE_OPTIONS = [
   'المرحلة الابتدائية',
-  'المرحلة الاعدادية',
+  'المرحلة الإعدادية',
   'المرحلة الثانوية',
 ] as const;
 

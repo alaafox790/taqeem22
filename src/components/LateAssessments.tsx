@@ -4,6 +4,7 @@ import { fetchFirebaseStudents } from '../lib/firebase';
 import { getAdjustedDueDate } from '../lib/validation';
 import { AssessmentRecord, MonthInfo, TermId } from '../types';
 import { MONTHS_DATA } from '../lib/constants';
+import { playAlertSoundAndVibrate } from '../lib/sound';
 
 interface LateAssessmentsProps {
   officialHolidays?: string[];
@@ -156,6 +157,12 @@ export const LateAssessments: React.FC<LateAssessmentsProps> = ({ teacherId, rec
     });
 
   }, [students, records]);
+
+  useEffect(() => {
+    if (lateAssessments.length > 0 && !loading) {
+      playAlertSoundAndVibrate();
+    }
+  }, [lateAssessments.length, loading]);
 
   if (loading) {
     return (

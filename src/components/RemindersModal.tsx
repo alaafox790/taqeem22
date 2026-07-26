@@ -67,8 +67,8 @@ export const RemindersModal: React.FC<RemindersModalProps> = ({
   const activeRemindersCount = reminders.filter(r => !r.isCompleted).length;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
-      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 w-screen h-screen max-w-full overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 dir-rtl flex items-center justify-center min-h-full animate-fadeIn">
+      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] overflow-hidden my-auto shrink-0">
         
         {/* Header */}
         <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-50 to-white text-slate-800 flex items-center justify-between border-b border-amber-100 shrink-0">

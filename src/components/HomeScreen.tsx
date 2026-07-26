@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Award, GraduationCap, BarChart3, Search, Shield,
-  MessageCircle, LogOut, Settings, AlertTriangle, CheckCircle2, UserCheck, Lock, Calendar, BellRing, Check, User, Users, Plus, ScrollText } from 'lucide-react';
+  MessageCircle, LogOut, Settings, AlertTriangle, CheckCircle2, UserCheck, Lock, Calendar, BellRing, Check, User, Users, Plus, ScrollText, FolderArchive, MessageSquare } from 'lucide-react';
 import { AppTab, TeacherProfile, AssessmentRecord, MonthInfo, TermId, Reminder } from '../types';
 import { MONTHS_DATA } from '../lib/constants';
 import { motion, AnimatePresence } from 'motion/react';
@@ -12,6 +12,8 @@ interface HomeScreenProps {
   onNavigate: (tab: AppTab) => void;
   teacher: TeacherProfile;
   onOpenProfile: () => void;
+  onOpenArchive?: () => void;
+  onOpenStudentMessages?: () => void;
   records: AssessmentRecord[];
   selectedTerm: TermId;
   academicYear: string;
@@ -26,6 +28,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigate,
   teacher,
   onOpenProfile,
+  onOpenArchive,
+  onOpenStudentMessages,
   records,
   selectedTerm,
   academicYear,
@@ -86,18 +90,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-start p-3 sm:p-4 space-y-4 sm:space-y-6">
-      {/* Top Bar for Settings and Logout */}
+      {/* Top Bar for Profile and Logout */}
       <div className="w-full max-w-2xl flex justify-between items-center gap-2">
-        {onLogout && (
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 backdrop-blur-xl shadow-sm border border-slate-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition-all cursor-pointer"
-            title="تسجيل الخروج والعودة لشاشة الدخول"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>تسجيل الخروج</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 backdrop-blur-xl shadow-sm border border-slate-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition-all cursor-pointer"
+              title="تسجيل الخروج والعودة لشاشة الدخول"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>تسجيل الخروج</span>
+            </button>
+          )}
+        </div>
 
         <button
           onClick={onOpenProfile}
@@ -143,7 +149,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
           <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
             <span className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#0f2b5c] via-[#059669] to-[#0f2b5c] text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-700/20 tracking-wide">
-              {teacher.educationalStage || 'المرحلة الإعدادية'}
+              {teacher.educationalStage || 'المرحلة الابتدائية'}
             </span>
 
           </div>
@@ -248,6 +254,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-amber-600 transition-colors">إدارة التنبيهات</span>
         </motion.button>
 
+        {/* Archive - Dedicated Icon Card */}
+        <motion.button
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.35 }}
+          onClick={() => {
+            if (!isComplete) {
+              setShowIncompleteNotice(true);
+              onOpenProfile();
+              return;
+            }
+            if (onOpenArchive) onOpenArchive();
+          }}
+          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
+        >
+          {!isComplete && (
+            <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
+              <Lock className="w-3 h-3" />
+            </div>
+          )}
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-500/30 flex items-center justify-center transition-all group-hover:shadow-amber-500/50 group-hover:scale-110 duration-300">
+            <FolderArchive className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+          </div>
+          <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-amber-700 transition-colors">أرشيف الفصول</span>
+        </motion.button>
+
         {/* Reports */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
@@ -303,6 +335,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Search className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
           <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-violet-500 transition-colors">البحث</span>
+        </motion.button>
+
+        {/* Student Messages - Dedicated Feature Card */}
+        <motion.button
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.55 }}
+          onClick={() => {
+            if (!isComplete) {
+              setShowIncompleteNotice(true);
+              onOpenProfile();
+              return;
+            }
+            if (onOpenStudentMessages) onOpenStudentMessages();
+          }}
+          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
+        >
+          {!isComplete && (
+            <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
+              <Lock className="w-3 h-3" />
+            </div>
+          )}
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center transition-all group-hover:shadow-emerald-500/50 group-hover:scale-110 duration-300">
+            <MessageSquare className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+          </div>
+          <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-emerald-600 transition-colors">رسائل الطلاب</span>
         </motion.button>
 
         {/* Admin Dashboard */}

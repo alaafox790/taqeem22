@@ -37,7 +37,9 @@ import {
   EyeOff,
   Users,
   CheckCircle2,
-  User
+  User,
+  RotateCcw,
+  Key
 } from 'lucide-react';
 import { Student, TermId, StudentAttendance, AttendanceStatus, AssessmentRecord, StatusColors } from '../types';
 import { GRADES, CLASSES_COUNT, MONTHS_DATA } from '../lib/constants';
@@ -46,6 +48,10 @@ import { saveFirebaseAttendance, saveFirebaseStudent, deleteFirebaseStudent, del
 import * as XLSX from 'xlsx';
 import { toPng } from 'html-to-image';
 import { StudentProfileDashboard } from './StudentProfileDashboard';
+import { CsvImportModal } from './CsvImportModal';
+import { PdfExportModal } from './PdfExportModal';
+import { StudentCodeModal } from './StudentCodeModal';
+import { generateStudentCode } from '../lib/codeGenerator';
 
 interface ClassRosterManagerProps {
   selectedTerm: TermId;
@@ -65,10 +71,24 @@ const ATTENDANCE_STORAGE_KEY = 'school_assessments_attendance_v1';
 export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selectedTerm, records, selectedMonthId, teacherId, isFirebaseConnected, onDeleteRecordsForClass, statusColors = DEFAULT_STATUS_COLORS, onAddReminder }) => {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
 
+  // Teacher Profile for exports
+  const teacherProfile = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('school_assessments_teacher_profile');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   // Search and Filter
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<AttendanceStatus | 'all'>('all');
+
+  // Global Student Search across all grades and classes
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [isListeningGlobal, setIsListeningGlobal] = useState(false);
 
   // Selected Grade & Class
   const [selectedGrade, setSelectedGrade] = useState<string>(() => {
@@ -162,6 +182,12 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
     return [];
   });
 
+  const globalSearchResults = useMemo(() => {
+    const q = globalSearchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return students.filter((s) => s.name.toLowerCase().includes(q));
+  }, [students, globalSearchQuery]);
+
   // Attendance state
   const [attendance, setAttendance] = useState<StudentAttendance[]>(() => {
     try {
@@ -198,6 +224,9 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
   // Modal & Focus Mode State
   const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [isStudentCodeModalOpen, setIsStudentCodeModalOpen] = useState(false);
   const [showBatchActions, setShowBatchActions] = useState(false);
   const [showModelDistribution, setShowModelDistribution] = useState(false);
   const [showAllAssessments, setShowAllAssessments] = useState(false);
@@ -612,6 +641,9 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
       return;
     }
 
+    const existingCodes = new Set(students.map((s) => s.studentNumber).filter(Boolean) as string[]);
+    const autoCode = generateStudentCode(existingCodes);
+
     const newStudent: Student = {
       id: crypto.randomUUID(),
       name: nameToSave,
@@ -619,6 +651,7 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
       class_num: Number(selectedClassNum),
       religion,
       status,
+      studentNumber: autoCode,
     };
 
     setStudents((prev) => [...prev, newStudent]);
@@ -636,6 +669,41 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
 
     if (!addNext) {
       setIsModalOpen(false);
+    }
+  };
+
+  // Handle CSV Import
+  const handleImportCsvStudents = async (importedStudents: Student[], replaceExisting: boolean) => {
+    if (!importedStudents || importedStudents.length === 0) return;
+
+    setStudents((prev) => {
+      let updated: Student[];
+      if (replaceExisting && selectedGrade && selectedClassNum) {
+        // Remove existing students for this specific grade and class
+        const otherStudents = prev.filter(
+          (s) => !(s.grade === selectedGrade && s.class_num === Number(selectedClassNum))
+        );
+        updated = [...otherStudents, ...importedStudents];
+      } else {
+        // Filter out duplicate names
+        const existingNames = new Set(prev.map((s) => s.name.trim().toLowerCase()));
+        const uniqueNew = importedStudents.filter(
+          (s) => !existingNames.has(s.name.trim().toLowerCase())
+        );
+        updated = [...prev, ...uniqueNew];
+      }
+      return updated;
+    });
+
+    if (isFirebaseConnected && importedStudents.length > 0) {
+      setSyncStatus('syncing');
+      try {
+        await Promise.all(importedStudents.map((s) => saveFirebaseStudent(s, teacherId)));
+        setSyncStatus('idle');
+      } catch (e) {
+        console.error('Failed to sync imported students to Firebase', e);
+        setSyncStatus('error');
+      }
     }
   };
 
@@ -935,6 +1003,21 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
             </select>
 
             <button
+              onClick={() => {
+                if (!selectedGrade || !selectedClassNum) {
+                  alert('يرجى اختيار الصف والفصل أولاً.');
+                  return;
+                }
+                setIsPdfModalOpen(true);
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+              title="طباعة وتصدير PDF"
+            >
+              <Printer className="w-4 h-4" />
+              <span>طباعة PDF</span>
+            </button>
+
+            <button
               onClick={() => setIsFocusMode(false)}
               className="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
             >
@@ -945,6 +1028,153 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
         </div>
       ) : (
         <>
+          {/* 🔎 Global Student Direct Search Bar */}
+          <div className="bg-gradient-to-r from-sky-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-3.5 sm:p-4 mb-4 shadow-lg border border-sky-800/50 space-y-3 relative">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-300 shrink-0">
+                  <Search className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm sm:text-base text-white flex items-center gap-2">
+                    <span>البحث المباشر عن طالب (كافة الصفوف والفصول)</span>
+                    <span className="bg-sky-500/30 text-sky-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-sky-400/30">
+                      {students.length} طالب مسجل
+                    </span>
+                  </h3>
+                  <p className="text-xs text-sky-200/80 font-medium mt-0.5">
+                    ابحث باسم الطالب مباشرة لعرض سجله التقييمي الشامل دون الحاجة للتنقل اليدوي بين الفصول
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative w-full">
+              <div className="relative flex items-center">
+                <Search className="w-5 h-5 text-slate-400 absolute right-3.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={globalSearchQuery}
+                  onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                  placeholder="اكتب اسم الطالب هنا لفتح سجله التقييمي مباشرة..."
+                  className="w-full bg-white/95 text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-bold rounded-xl pr-11 pl-20 py-3 border border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-400 shadow-inner transition-all"
+                />
+                <div className="absolute left-2 flex items-center gap-1">
+                  {globalSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setGlobalSearchQuery('')}
+                      className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+                      title="مسح البحث"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleVoiceInput(setGlobalSearchQuery, setIsListeningGlobal)}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      isListeningGlobal ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                    title="بحث بالصوت"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Live Search Results Panel */}
+              {globalSearchQuery.trim() !== '' && (
+                <div className="absolute top-full right-0 left-0 mt-2 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden max-h-80 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+                  <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600">
+                    <span>نتائج البحث المباشر ({globalSearchResults.length}):</span>
+                    {globalSearchResults.length > 0 && (
+                      <span className="text-sky-700">اضغط على الطالب لإظهار السجل الكامل</span>
+                    )}
+                  </div>
+
+                  {globalSearchResults.length === 0 ? (
+                    <div className="p-6 text-center text-slate-500 text-xs font-bold">
+                      لا يوجد طالب بهذا الاسم بجميع الصفوف والفصول المسجلة.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {globalSearchResults.map((s) => (
+                        <div
+                          key={s.id}
+                          className="p-3 hover:bg-sky-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 group cursor-pointer"
+                          onClick={() => {
+                            setSelectedGrade(s.grade);
+                            setSelectedClassNum(s.class_num);
+                            setSelectedStudentForProfile(s);
+                            setGlobalSearchQuery('');
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-extrabold text-xs flex items-center justify-center shadow-sm shrink-0">
+                              {s.name.charAt(0)}
+                            </div>
+                            <div>
+                              <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-sky-700 transition-colors">
+                                {s.name}
+                              </h4>
+                              <div className="flex items-center gap-2 mt-0.5 text-[11px] font-bold text-slate-500">
+                                <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                                  الصف {s.grade} - فصل {s.class_num}
+                                </span>
+                                {s.religion && (
+                                  <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800">
+                                    {s.religion}
+                                  </span>
+                                )}
+                                {s.status && (
+                                  <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800">
+                                    {s.status}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedGrade(s.grade);
+                                setSelectedClassNum(s.class_num);
+                                setSelectedStudentForProfile(s);
+                                setGlobalSearchQuery('');
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 active:scale-95 text-white font-black text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>السجل التقييمي الكامل</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedGrade(s.grade);
+                                setSelectedClassNum(s.class_num);
+                                setGlobalSearchQuery('');
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1 transition-all cursor-pointer"
+                              title="انتقال لمكان الطالب في الفصل"
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                              <span>الانتقال للفصل</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Top Bar: Organized Tab System */}
           <div className="flex flex-col mb-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Tab Headers */}
@@ -1024,20 +1254,55 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
                       </div>
                     </div>
                     
-                    {/* Add Student Button */}
-                    <button
-                      onClick={() => {
-                        if (!selectedGrade || !selectedClassNum) {
-                          alert('يرجى اختيار الصف والفصل أولاً.');
-                          return;
-                        }
-                        setIsModalOpen(true);
-                      }}
-                      className="bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold px-4 py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95 cursor-pointer w-full"
-                    >
-                      <span>إضافة طالب</span>
-                      <UserPlus className="w-4 h-4" />
-                    </button>
+                    {/* Action Buttons: Manual Add, CSV Import, PDF Export & Student Codes */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
+                      <button
+                        onClick={() => {
+                          if (!selectedGrade || !selectedClassNum) {
+                            alert('يرجى اختيار الصف والفصل أولاً.');
+                            return;
+                          }
+                          setIsModalOpen(true);
+                        }}
+                        className="bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold px-3 py-2.5 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        <span>إضافة طالب</span>
+                      </button>
+
+                      <button
+                        onClick={() => setIsCsvModalOpen(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2.5 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="استيراد كشف الأسماء من ملف Excel / CSV"
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        <span>استيراد CSV / Excel</span>
+                      </button>
+
+                      <button
+                        onClick={() => setIsStudentCodeModalOpen(true)}
+                        className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2.5 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="توليد وتصدير أكواد دخول الطلاب وكروت الواتساب"
+                      >
+                        <Key className="w-4 h-4" />
+                        <span>أكواد الطلاب وكروتهم 🔑</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (!selectedGrade || !selectedClassNum) {
+                            alert('يرجى اختيار الصف والفصل أولاً.');
+                            return;
+                          }
+                          setIsPdfModalOpen(true);
+                        }}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2.5 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        title="طباعة وتصدير كشف الحضور والتقييمات إلى PDF"
+                      >
+                        <Printer className="w-4 h-4" />
+                        <span>طباعة وتصدير PDF</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1545,8 +1810,8 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
 
       {/* Class Appearance Modal */}
       {isAppearanceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 w-screen h-screen max-w-full overflow-y-auto bg-black/40 backdrop-blur-sm p-3 sm:p-4 dir-rtl flex items-center justify-center min-h-full">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 relative my-auto shrink-0 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-slate-800">تخصيص مظهر الفصل</h3>
               <button onClick={() => setIsAppearanceModalOpen(false)} className="text-slate-500 hover:text-slate-600 transition-colors">
@@ -1604,8 +1869,8 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
 
       {/* Clear All Assessments Warning Modal */}
       {showClearAssessmentsWarning && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 relative shadow-2xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[80] w-screen h-screen max-w-full overflow-y-auto bg-slate-900/50 backdrop-blur-sm p-3 sm:p-4 dir-rtl flex items-center justify-center min-h-full animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 relative my-auto shrink-0 shadow-2xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200">
             
             <div className="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
               <AlertTriangle className="w-8 h-8" />
@@ -1666,6 +1931,49 @@ export const ClassRosterManager: React.FC<ClassRosterManagerProps> = ({ selected
           }}
         />
       )}
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        defaultGrade={selectedGrade}
+        defaultClassNum={selectedClassNum}
+        existingStudents={students}
+        onImportStudents={handleImportCsvStudents}
+      />
+
+      {/* PDF Print & Export Modal */}
+      <PdfExportModal
+        isOpen={isPdfModalOpen}
+        onClose={() => setIsPdfModalOpen(false)}
+        selectedGrade={selectedGrade}
+        selectedClassNum={selectedClassNum}
+        selectedTerm={selectedTerm}
+        selectedMonthId={selectedMonthId}
+        students={displayedStudents}
+        attendanceRecords={attendance}
+        teacherName={teacherProfile?.name || 'معلم المادة'}
+        schoolName={teacherProfile?.school || 'مدرسة الأوائل الحديثة'}
+      />
+
+      {/* Student Code & Cards Modal */}
+      <StudentCodeModal
+        isOpen={isStudentCodeModalOpen}
+        onClose={() => setIsStudentCodeModalOpen(false)}
+        students={students}
+        onUpdateStudents={(updated) => {
+          setStudents(updated);
+          if (isFirebaseConnected) {
+            setSyncStatus('syncing');
+            Promise.all(updated.map((s) => saveFirebaseStudent(s, teacherId)))
+              .then(() => setSyncStatus('idle'))
+              .catch(() => setSyncStatus('error'));
+          }
+        }}
+        teacher={teacherProfile}
+        selectedGrade={selectedGrade}
+        selectedClassNum={selectedClassNum}
+      />
     </div>
   );
 };

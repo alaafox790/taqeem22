@@ -1,6 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { Student, StudentAttendance, AssessmentRecord, TermId } from '../types';
-import { X, User, Upload, Calendar, FileText, Check, Minus, AlertTriangle, ChevronRight, CheckCircle2, Camera, ChevronDown, ChevronUp } from 'lucide-react';
+import { 
+  X, User, Upload, Calendar, FileText, Check, Minus, AlertTriangle, 
+  ChevronRight, CheckCircle2, Camera, ChevronDown, ChevronUp, 
+  TrendingDown, AlertOctagon, Activity, Sparkles, ShieldAlert, BellRing 
+} from 'lucide-react';
 import { getStoredStatusColors } from '../lib/statusColors';
 import { MONTHS_DATA } from '../lib/constants';
 
@@ -91,12 +95,63 @@ export const StudentProfileDashboard: React.FC<StudentProfileDashboardProps> = (
   const ABSENCE_LIMIT = 3;
   const hasExceededAbsence = totalAbsent >= ABSENCE_LIMIT;
 
+  // Analytics: 1. Detect Consecutive Absences (تقييمين متتاليين أو أكثر)
+  const sortedByAssessNum = [...attendance].sort((a, b) => a.assess_num - b.assess_num);
+  const consecutiveAbsenceGroups: number[][] = [];
+  let currentGroup: number[] = [];
+
+  sortedByAssessNum.forEach((record) => {
+    if (record.status === 'absent') {
+      currentGroup.push(record.assess_num);
+    } else {
+      if (currentGroup.length >= 2) {
+        consecutiveAbsenceGroups.push([...currentGroup]);
+      }
+      currentGroup = [];
+    }
+  });
+  if (currentGroup.length >= 2) {
+    consecutiveAbsenceGroups.push([...currentGroup]);
+  }
+
+  const hasConsecutiveAbsence = consecutiveAbsenceGroups.length > 0;
+
+  // Analytics: 2. Detect Participation / Attendance Drop (انخفاض مستوى المشاركة)
+  let participationTrend = {
+    hasDrop: false,
+    earlyRate: 0,
+    recentRate: 0,
+    dropAmount: 0,
+  };
+
+  if (sortedByAssessNum.length >= 3) {
+    const halfIndex = Math.floor(sortedByAssessNum.length / 2);
+    const earlyRecords = sortedByAssessNum.slice(0, halfIndex);
+    const recentRecords = sortedByAssessNum.slice(halfIndex);
+
+    const earlyPresent = earlyRecords.filter((r) => r.status === 'present').length;
+    const recentPresent = recentRecords.filter((r) => r.status === 'present').length;
+
+    const earlyRate = Math.round((earlyPresent / (earlyRecords.length || 1)) * 100);
+    const recentRate = Math.round((recentPresent / (recentRecords.length || 1)) * 100);
+    const dropAmount = earlyRate - recentRate;
+
+    if (dropAmount >= 20) {
+      participationTrend = {
+        hasDrop: true,
+        earlyRate,
+        recentRate,
+        dropAmount,
+      };
+    }
+  }
+
   React.useEffect(() => {
     if (hasExceededAbsence && onAddReminder) {
       const alertKey = `absence_alert_sent_${student.id}_${totalAbsent}`;
       if (!localStorage.getItem(alertKey)) {
         onAddReminder({
-          title: `تنبيه غياب متكرر: ${student.name}`,
+          title: `تنبيه تجاوز حد الغياب: ${student.name}`,
           description: `تجاوز الطالب ${student.name} الحد المسموح للغياب (${totalAbsent} أيام غياب). نسبة الحضور الحالية: ${attendancePercentage}%. الرجاء متابعة حالة الطالب.`,
           targetType: 'student',
           targetName: student.name,
@@ -106,13 +161,28 @@ export const StudentProfileDashboard: React.FC<StudentProfileDashboardProps> = (
         localStorage.setItem(alertKey, 'true');
       }
     }
-  }, [hasExceededAbsence, totalAbsent, student.id, student.name, attendancePercentage, onAddReminder]);
+
+    if (hasConsecutiveAbsence && onAddReminder) {
+      const consecutiveKey = `consecutive_alert_${student.id}_${consecutiveAbsenceGroups.flat().join('_')}`;
+      if (!localStorage.getItem(consecutiveKey)) {
+        onAddReminder({
+          title: `تنبيه غياب متتالي: ${student.name}`,
+          description: `سجل الطالب ${student.name} غياباً متتابعاً في التقييمات (${consecutiveAbsenceGroups.flat().join(' و ')}). يُوصى بالتواصل المباشر مع ولي الأمر.`,
+          targetType: 'student',
+          targetName: student.name,
+          reminderDate: new Date().toISOString().split('T')[0],
+          notifyStudents: false
+        });
+        localStorage.setItem(consecutiveKey, 'true');
+      }
+    }
+  }, [hasExceededAbsence, hasConsecutiveAbsence, totalAbsent, student.id, student.name, attendancePercentage, onAddReminder, consecutiveAbsenceGroups]);
 
   const recentAssessments = [...attendance].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 5);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
-      <div className="bg-slate-50 w-full max-w-4xl h-full sm:h-[90vh] rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative">
+    <div className="fixed inset-0 z-50 w-screen h-screen max-w-full overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-3 sm:p-5 dir-rtl flex items-center justify-center min-h-full animate-in fade-in duration-200">
+      <div className="bg-slate-50 w-full max-w-4xl h-full sm:h-[90vh] max-h-[90vh] rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative my-auto shrink-0">
         
         {/* Header (Minimal & Clean) */}
         <div className="bg-white border-b border-slate-200 px-5 py-4 flex justify-between items-center shrink-0">
@@ -177,6 +247,16 @@ export const StudentProfileDashboard: React.FC<StudentProfileDashboardProps> = (
               
               <div>
                 <h3 className="text-lg font-bold text-slate-800 mb-1">{student.name}</h3>
+                {student.studentNumber && (
+                  <p className="text-xs font-bold text-sky-700 mb-1.5 font-mono">
+                    رقم الطالب: {student.studentNumber}
+                  </p>
+                )}
+                {student.parentPhone && (
+                  <p className="text-xs font-medium text-slate-500 mb-1.5 font-mono">
+                    هاتف ولي الأمر: {student.parentPhone}
+                  </p>
+                )}
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold border border-slate-200">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                   الفصل {student.class_num} - الصف {student.grade}
@@ -207,7 +287,7 @@ export const StudentProfileDashboard: React.FC<StudentProfileDashboardProps> = (
 
           {/* Absence Alert Banner */}
           {hasExceededAbsence && (
-            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-4">
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-4 shadow-xs">
               <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
                 <AlertTriangle className="w-5 h-5" />
               </div>
@@ -219,6 +299,110 @@ export const StudentProfileDashboard: React.FC<StudentProfileDashboardProps> = (
               </div>
             </div>
           )}
+
+          {/* Smart Attendance Analytics & Trend Alerts */}
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xl border border-indigo-900/50 space-y-4">
+            <div className="flex items-center justify-between gap-3 border-b border-indigo-800/60 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                    <span>تحليلات الحضور ومؤشرات الالتزام</span>
+                    <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                  </h3>
+                  <p className="text-xs text-indigo-200/80 font-medium">مقارنة تلقائية لأداء الطالب وتتبع نمط الغياب</p>
+                </div>
+              </div>
+
+              {/* Quick Action Button */}
+              {onAddReminder && (hasConsecutiveAbsence || participationTrend.hasDrop || hasExceededAbsence) && (
+                <button
+                  onClick={() => {
+                    onAddReminder({
+                      title: `متابعة الطالب ${student.name}`,
+                      description: `متابعة خاصة بالطالب ${student.name} بسبب ملاحظات الحضور والمشاركة.`,
+                      targetType: 'student',
+                      targetName: student.name,
+                      reminderDate: new Date().toISOString().split('T')[0],
+                      notifyStudents: false
+                    });
+                    alert(`تم إضافة تذكير لمتابعة الطالب ${student.name} بنجاح.`);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0"
+                >
+                  <BellRing className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">جدولة تذكير للمعلم</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Alert 1: Consecutive Absences */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                hasConsecutiveAbsence 
+                  ? 'bg-rose-950/80 border-rose-500/50 text-rose-100 shadow-md shadow-rose-950/40' 
+                  : 'bg-indigo-900/30 border-indigo-800/40 text-indigo-200'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                    hasConsecutiveAbsence ? 'bg-rose-500 text-white' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  }`}>
+                    {hasConsecutiveAbsence ? <AlertOctagon className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold mb-1 flex items-center gap-1.5">
+                      <span>الغياب المتتالي (تقييمين متتاليين أو أكثر)</span>
+                    </h4>
+                    {hasConsecutiveAbsence ? (
+                      <p className="text-[11px] leading-relaxed text-rose-200 font-medium">
+                        🚨 <strong className="text-white font-black">تنبيه خطر:</strong> سجل الطالب غياباً متتابعاً في التقييمات{' '}
+                        <span className="font-mono font-bold bg-rose-900/80 px-1.5 py-0.5 rounded text-white">
+                          ({consecutiveAbsenceGroups.map(g => g.join(' و ')).join('، ')})
+                        </span>. ينصح بالتواصل مع ولي الأمر فوراً.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] leading-relaxed text-indigo-300 font-medium">
+                        ✅ لا يوجد أي غياب متتالي أو متتابع في التقييمات المسجلة حتى الآن.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Alert 2: Participation Drop Trend */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                participationTrend.hasDrop 
+                  ? 'bg-amber-950/80 border-amber-500/50 text-amber-100 shadow-md shadow-amber-950/40' 
+                  : 'bg-indigo-900/30 border-indigo-800/40 text-indigo-200'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                    participationTrend.hasDrop ? 'bg-amber-500 text-white' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  }`}>
+                    {participationTrend.hasDrop ? <TrendingDown className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold mb-1 flex items-center gap-1.5">
+                      <span>مؤشر تغير مستوى المشاركة والالتزام</span>
+                    </h4>
+                    {participationTrend.hasDrop ? (
+                      <p className="text-[11px] leading-relaxed text-amber-200 font-medium">
+                        📉 <strong className="text-white font-black">تنبيه انخفاض المشاركة:</strong> انخفضت نسبة حضور الطالب من{' '}
+                        <span className="font-bold text-emerald-300">{participationTrend.earlyRate}%</span> في التقييمات الأولى إلى{' '}
+                        <span className="font-bold text-rose-300">{participationTrend.recentRate}%</span> في التقييمات الأخيرة (انخفاض قدره {participationTrend.dropAmount}%).
+                      </p>
+                    ) : (
+                      <p className="text-[11px] leading-relaxed text-indigo-300 font-medium">
+                        ✨ مستوى المشاركة والحضور مستقر أو متصاعد بشكل جيد بين التقييمات السابقة والحديثة.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Recent 5 Assessments (Expandable) */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

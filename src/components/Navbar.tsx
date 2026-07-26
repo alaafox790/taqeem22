@@ -17,7 +17,8 @@ import {
   Wifi,
   WifiOff,
   LogOut,
-  FolderArchive
+  FolderArchive,
+  MessageSquare
 } from 'lucide-react';
 import { TeacherProfile, AppTab } from '../types';
 import { isTeacherProfileComplete } from '../lib/validation';
@@ -29,6 +30,7 @@ interface NavbarProps {
   onSelectTab: (tab: AppTab) => void;
   onOpenProfile: () => void;
   onOpenArchive?: () => void;
+  onOpenStudentMessages?: () => void;
   isFirebaseConnected?: boolean;
   onLogout?: () => void;
 }
@@ -40,6 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectTab,
   onOpenProfile,
   onOpenArchive,
+  onOpenStudentMessages,
   isFirebaseConnected = true,
   onLogout,
 }) => {
@@ -83,18 +86,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
 
-            {/* Archive Button - Mobile */}
-            {onOpenArchive && (
-              <button
-                onClick={onOpenArchive}
-                className="flex md:hidden items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold shrink-0 shadow-xs cursor-pointer"
-                title="فتح حافظة الأرشيف"
-              >
-                <FolderArchive className="w-4 h-4 text-amber-600" />
-                <span>الأرشيف</span>
-              </button>
-            )}
-
             {/* Teacher Info Button - Mobile & Desktop */}
             <button
               onClick={onOpenProfile}
@@ -109,7 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Center / Bottom: Navigation Tabs Bar */}
-          <div className="hidden items-center justify-between md:justify-center gap-0.5 sm:gap-1.5 w-full md:w-auto bg-slate-50/80 backdrop-blur-md p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-200/60 shadow-inner overflow-hidden">
+          <div className="flex items-center justify-start md:justify-center overflow-x-auto gap-0.5 sm:gap-1.5 w-full md:w-auto bg-slate-50/80 backdrop-blur-md p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-200/60 shadow-inner scrollbar-none">
             {/* Tab 1: Assessments */}
             <button
               onClick={() => handleTabClick('assessments')}
@@ -175,20 +166,32 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Palette className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-colors ${activeTab === 'settings' ? 'text-indigo-600' : 'text-slate-400'}`} />
               <span className="whitespace-nowrap">الألوان</span>
             </button>
+
+            {/* Tab 6: Archive Section Icon */}
+            {onOpenArchive && (
+              <button
+                onClick={onOpenArchive}
+                className="flex-1 md:flex-none px-1.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-2 shrink-0 cursor-pointer bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 shadow-xs"
+                title="فتح قسم الأرشيف وحافظة الفصول التاريخية"
+              >
+                <FolderArchive className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-amber-600 shrink-0" />
+                <span className="whitespace-nowrap font-black">الأرشيف</span>
+              </button>
+            )}
           </div>
 
           {/* Left side: Teacher Profile & Status */}
           <div className="hidden md:flex items-center gap-2">
             
-            {/* Archive Button */}
-            {onOpenArchive && (
+            {/* Student Messages Button */}
+            {onOpenStudentMessages && (
               <button
-                onClick={onOpenArchive}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100/80 text-amber-900 border border-amber-200/90 font-bold text-xs transition-all shadow-xs cursor-pointer active:scale-95"
-                title="فتح حافظة الأرشيف التاريخي للفصول والتقييمات"
+                onClick={onOpenStudentMessages}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-all text-xs font-black cursor-pointer shadow-2xs"
+                title="استقبال والرد على رسائل الطلاب بداخل التطبيق"
               >
-                <FolderArchive className="w-4 h-4 text-amber-600" />
-                <span>الأرشيف</span>
+                <MessageSquare className="w-4 h-4 text-emerald-600" />
+                <span className="hidden lg:inline">رسائل الطلاب</span>
               </button>
             )}
 

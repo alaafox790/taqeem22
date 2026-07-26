@@ -18,6 +18,7 @@ export interface Student {
   religion?: 'مسلم' | 'مسيحي';
   status?: 'مستجد' | 'باق';
   parentPhone?: string;
+  studentNumber?: string;
   photoUrl?: string;
 }
 
@@ -113,5 +114,48 @@ export interface Reminder {
   created_at: string;
   notifyStudents?: boolean;
 }
+
+export type RemedialReason = 'frequent_absence' | 'consecutive_absence' | 'low_performance' | 'manual_flag';
+
+export interface RemedialActionStep {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+  notes?: string;
+}
+
+export interface RemedialPlan {
+  id: string;
+  studentId: string;
+  studentName: string;
+  grade: string;
+  class_num: number;
+  reasons: RemedialReason[];
+  absenceCount: number;
+  consecutiveAbsences: number;
+  attendanceRate: number;
+  targetArea: string;
+  expectedOutcome: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  actionSteps: RemedialActionStep[];
+  teacherNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  studentCode: string;
+  studentName: string;
+  grade: number | string;
+  class_num: number | string;
+  teacher_id: string;
+  sender: 'student' | 'teacher';
+  text: string;
+  timestamp: string; // ISO string
+  createdAt?: string;
+  isRead?: boolean;
+}
+
 
 

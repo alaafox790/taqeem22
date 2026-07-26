@@ -21,12 +21,55 @@
         "model_form": { "type": "string" }
       },
       "required": ["id", "teacher_id", "academic_year", "term_id", "month_id", "assess_num", "grade", "class_num", "assess_date"]
+    },
+    "Reminder": {
+      "title": "Reminder / Announcement",
+      "description": "Notification or reminder created by a teacher for students/classes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacher_id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "targetType": { "type": "string" },
+        "targetName": { "type": "string" },
+        "reminderDate": { "type": "string" },
+        "isCompleted": { "type": "boolean" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "teacher_id", "title", "reminderDate"]
+    },
+    "ChatMessage": {
+      "title": "In-App Chat Message",
+      "description": "Direct message exchanged between student and teacher inside the app",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentCode": { "type": "string" },
+        "studentName": { "type": "string" },
+        "grade": { "type": "string" },
+        "class_num": { "type": "number" },
+        "teacher_id": { "type": "string" },
+        "sender": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": ["id", "studentCode", "teacher_id", "sender", "text", "timestamp"]
     }
   },
   "firestore": {
     "/assessments/{assessmentId}": {
       "schema": "AssessmentRecord",
       "description": "Collection of assessment records created by teachers"
+    },
+    "/reminders/{reminderId}": {
+      "schema": "Reminder",
+      "description": "Collection of reminders and announcements created by teachers"
+    },
+    "/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "In-app chat messages between students and teachers"
     }
   }
 }

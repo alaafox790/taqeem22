@@ -1,6 +1,8 @@
 {
   "name": "تقييماتي",
   "description": "تطبيق محترف للمعلمين لتسجيل وتوثيق التقييمات المدرسية للطلاب مع تنظيم النماذج والمتابعة الشاملة.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": [
+    "microphone"
+  ],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

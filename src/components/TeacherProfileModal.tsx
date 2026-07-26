@@ -67,6 +67,12 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
         { id: '5', label: 'الصف الخامس الابتدائي' },
         { id: '6', label: 'الصف السادس الابتدائي' },
       ];
+    } else if (stage === 'المرحلة الإعدادية' || stage === 'المرحلة الاعدادية') {
+      return [
+        { id: '1', label: 'الصف الأول الإعدادي' },
+        { id: '2', label: 'الصف الثاني الإعدادي' },
+        { id: '3', label: 'الصف الثالث الإعدادي' },
+      ];
     } else if (stage === 'المرحلة الثانوية') {
       return [
         { id: '1', label: 'الصف الأول الثانوي' },
@@ -75,9 +81,9 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
       ];
     } else {
       return [
-        { id: '1', label: 'الصف الأول الإعدادي' },
-        { id: '2', label: 'الصف الثاني الإعدادي' },
-        { id: '3', label: 'الصف الثالث الإعدادي' },
+        { id: '1', label: 'الصف الأول' },
+        { id: '2', label: 'الصف الثاني' },
+        { id: '3', label: 'الصف الثالث' },
       ];
     }
   };
@@ -261,8 +267,8 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 relative border border-slate-100 dark:border-slate-800 my-8 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 w-screen h-screen max-w-full overflow-y-auto bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 dir-rtl flex items-center justify-center min-h-full">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 relative border border-slate-100 dark:border-slate-800 my-auto shrink-0 animate-in fade-in zoom-in duration-200">
         
         {/* Close Button */}
         <button
@@ -556,7 +562,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                   value={school}
                   onChange={(e) => setSchool(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-medium text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/50"
-                  placeholder="مثال: مدرسة الأمل الإعدادية"
+                  placeholder="مثال: مدرسة الأمل"
                 />
               </div>
 
@@ -574,7 +580,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                 >
                   <option value="">-- اختر المرحلة التعليمية --</option>
                   <option value="المرحلة الابتدائية">المرحلة الابتدائية</option>
-                  <option value="المرحلة الاعدادية">المرحلة الاعدادية</option>
+                  <option value="المرحلة الإعدادية">المرحلة الإعدادية</option>
                   <option value="المرحلة الثانوية">المرحلة الثانوية</option>
                 </select>
               </div>

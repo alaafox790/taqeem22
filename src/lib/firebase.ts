@@ -11,7 +11,7 @@ import {
   getDocFromServer
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { AssessmentRecord } from '../types';
+import { AssessmentRecord, Reminder, ChatMessage } from '../types';
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -375,3 +375,127 @@ export async function syncOfflineRecords(teacherId: string): Promise<boolean> {
 export function getLastSyncTime(teacherId: string): string | null {
   return localStorage.getItem(`last_sync_time_${teacherId}`);
 }
+
+// ----------------- REMINDERS SYNC -----------------
+
+export async function saveFirebaseReminder(reminder: Reminder, teacherId: string): Promise<boolean> {
+  try {
+    await setDoc(doc(db, 'reminders', reminder.id), { ...reminder, teacher_id: teacherId });
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `reminders/${reminder.id}`);
+    return false;
+  }
+}
+
+export async function fetchFirebaseReminders(teacherId: string, teacherPhone?: string): Promise<Reminder[]> {
+  try {
+    const q = query(collection(db, 'reminders'), where('teacher_id', '==', teacherId));
+    const querySnapshot = await getDocs(q);
+    const fetched: Reminder[] = [];
+    querySnapshot.forEach((docSnap) => {
+      fetched.push(docSnap.data() as Reminder);
+    });
+    if (teacherPhone && teacherPhone !== teacherId) {
+      try {
+        const qPhone = query(collection(db, 'reminders'), where('teacher_id', '==', teacherPhone));
+        const phoneSnap = await getDocs(qPhone);
+        phoneSnap.forEach((docSnap) => {
+          const d = docSnap.data() as Reminder;
+          if (!fetched.some(r => r.id === d.id)) {
+            fetched.push(d);
+          }
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
+    return fetched;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, 'reminders');
+    return [];
+  }
+}
+
+export async function deleteFirebaseReminder(reminderId: string): Promise<boolean> {
+  try {
+    await deleteDoc(doc(db, 'reminders', reminderId));
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `reminders/${reminderId}`);
+    return false;
+  }
+}
+
+// ----------------- CHAT MESSAGES SYNC -----------------
+
+export async function saveFirebaseMessage(msg: ChatMessage): Promise<boolean> {
+  try {
+    await setDoc(doc(db, 'messages', msg.id), msg);
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `messages/${msg.id}`);
+    return false;
+  }
+}
+
+export async function fetchFirebaseMessagesForStudent(studentCode: string, teacherId: string): Promise<ChatMessage[]> {
+  try {
+    const q = query(
+      collection(db, 'messages'),
+      where('studentCode', '==', studentCode)
+    );
+    const snap = await getDocs(q);
+    const msgs: ChatMessage[] = [];
+    snap.forEach((docSnap) => {
+      msgs.push(docSnap.data() as ChatMessage);
+    });
+    // Sort chronologically
+    return msgs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, 'messages');
+    return [];
+  }
+}
+
+export async function fetchFirebaseMessagesForTeacher(teacherId: string, teacherPhone?: string): Promise<ChatMessage[]> {
+  try {
+    const q = query(collection(db, 'messages'), where('teacher_id', '==', teacherId));
+    const snap = await getDocs(q);
+    const msgs: ChatMessage[] = [];
+    snap.forEach((docSnap) => {
+      msgs.push(docSnap.data() as ChatMessage);
+    });
+
+    if (teacherPhone && teacherPhone !== teacherId) {
+      try {
+        const qPhone = query(collection(db, 'messages'), where('teacher_id', '==', teacherPhone));
+        const phoneSnap = await getDocs(qPhone);
+        phoneSnap.forEach((docSnap) => {
+          const d = docSnap.data() as ChatMessage;
+          if (!msgs.some(m => m.id === d.id)) {
+            msgs.push(d);
+          }
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    return msgs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, 'messages');
+    return [];
+  }
+}
+
+export async function markFirebaseMessageAsRead(messageId: string): Promise<boolean> {
+  try {
+    await setDoc(doc(db, 'messages', messageId), { isRead: true }, { merge: true });
+    return true;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `messages/${messageId}`);
+    return false;
+  }
+}
+

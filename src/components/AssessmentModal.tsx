@@ -249,8 +249,8 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-sm w-full p-5 text-slate-800 transition-all relative my-auto animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 w-screen h-screen max-w-full overflow-y-auto bg-black/60 backdrop-blur-md p-3 sm:p-4 dir-rtl flex items-center justify-center min-h-full">
+      <div className="bg-white rounded-3xl max-w-sm w-full p-5 text-slate-800 transition-all relative my-auto shadow-2xl animate-in fade-in zoom-in duration-200 shrink-0">
         
         {/* Modal Header */}
         <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
