@@ -4,8 +4,13 @@ import { Download } from 'lucide-react';
 export const InstallPWA: React.FC = () => {
   const [supportsPWA, setSupportsPWA] = useState(false);
   const [promptInstall, setPromptInstall] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+
     const handler = (e: Event) => {
       e.preventDefault();
       setSupportsPWA(true);
@@ -14,18 +19,30 @@ export const InstallPWA: React.FC = () => {
 
     window.addEventListener('beforeinstallprompt', handler);
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', () => {
+      setIsInstalled(true);
+      setSupportsPWA(false);
+    });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+    };
   }, []);
 
-  const onClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const onClick = async (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     if (!promptInstall) {
       return;
     }
     promptInstall.prompt();
+    const { outcome } = await promptInstall.userChoice;
+    if (outcome === 'accepted') {
+      setIsInstalled(true);
+      setSupportsPWA(false);
+    }
   };
 
-  if (!supportsPWA) {
+  if (!supportsPWA || isInstalled) {
     return null;
   }
 
