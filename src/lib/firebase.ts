@@ -8,7 +8,8 @@ import {
   deleteDoc,
   query,
   where,
-  getDocFromServer
+  getDocFromServer,
+  setLogLevel
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { AssessmentRecord, Reminder, ChatMessage } from '../types';
@@ -18,6 +19,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 // CRITICAL: Pass firestoreDatabaseId when initializing getFirestore
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+setLogLevel("silent");
 
 const STORAGE_KEY = 'school_assessments_archive_v1';
 
@@ -45,8 +47,16 @@ export async function testFirebaseConnection() {
     await getDocFromServer(doc(db, 'test', 'connection'));
     console.log('Firebase connection successful');
   } catch (error) {
-    if (error instanceof Error && error.message.includes('client is offline')) {
-      console.warn('Firebase client is offline, using local cache.');
+    if (error instanceof Error) {
+      if (error.message.includes('client is offline')) {
+        console.warn('Firebase client is offline, using local cache.');
+      } else if (error.message.includes('unavailable') || error.message.includes('Could not reach')) {
+        console.warn('Firebase backend unreachable. Operating in offline mode.');
+      } else {
+        console.warn('Firebase connection test warning:', error.message);
+      }
+    } else {
+       console.warn('Firebase connection test warning:', error);
     }
   }
 }

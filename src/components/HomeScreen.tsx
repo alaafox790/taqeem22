@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { isTeacherProfileComplete } from '../lib/validation';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { LateAssessments } from './LateAssessments';
-import { InstallPWA } from './InstallPWA';
+import { InstallButton } from './InstallButton';
 
 interface HomeScreenProps {
   onNavigate: (tab: AppTab) => void;
@@ -23,6 +23,7 @@ interface HomeScreenProps {
   reminders: Reminder[];
   onOpenRemindersModal: () => void;
   onToggleReminderComplete: (id: string) => void;
+  isInstallable?: boolean;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -104,7 +105,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <span>تسجيل الخروج</span>
             </button>
           )}
-          <InstallPWA />
+          {isInstallable && <InstallButton />}
         </div>
 
         <button

@@ -9,12 +9,22 @@
     <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="تطبيق المعلم الذكي - إدارة التقييمات" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
-    <link rel="icon" type="image/svg+xml" href="/icon-192.png" />
+    <link rel="icon" type="image/png" href="/icon-192.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+  
+    <script>
+      window.deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredPrompt = e;
+        window.dispatchEvent(new Event('pwa-prompt-ready'));
+      });
+    </script>
   </head>
+
   <body class="font-['Tajawal',sans-serif] bg-slate-50 text-slate-800 antialiased selection:bg-emerald-500 selection:text-white transition-colors duration-200">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

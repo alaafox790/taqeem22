@@ -19,6 +19,7 @@ import { TeacherProfileModal } from './components/TeacherProfileModal';
 import { RemindersModal } from './components/RemindersModal';
 import { TeacherMessagesModal } from './components/TeacherMessagesModal';
 import { Toast, ToastMessage } from './components/Toast';
+import { SnackbarReminder } from './components/SnackbarReminder';
 import { LoginScreen, ManagementLoginData, StudentLoginData } from './components/LoginScreen';
 import { StudentPortal } from './components/StudentPortal';
 
@@ -64,6 +65,7 @@ export default function App() {
   // Navigation tab state (4 screens + countdown)
   const [activeTab, setActiveTab] = useState<AppTab>('home');
   const [hasShownCompleteToast, setHasShownCompleteToast] = useState(false);
+  const [isInstallable, setIsInstallable] = useState(false);
 
   // Teacher profile state
   const [teacher, setTeacher] = useState<TeacherProfile>(() => {
@@ -298,6 +300,7 @@ export default function App() {
 
   // Toast Notification state
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [reminderMessage, setReminderMessage] = useState<string | null>(null);
 
   // Test Firebase on startup
   const loadData = useCallback(async () => {
@@ -324,6 +327,25 @@ export default function App() {
 
     setIsFirebaseConnected(true);
   }, [teacher.id, teacher.phone]);
+  useEffect(() => {
+    const handlePromptReady = () => setIsInstallable(true);
+    const handleAppInstalled = () => setIsInstallable(false);
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstallable(false);
+    } else if ((window as any).deferredPrompt) {
+      setIsInstallable(true);
+    }
+
+    window.addEventListener('pwa-prompt-ready', handlePromptReady);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('pwa-prompt-ready', handlePromptReady);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
   useEffect(() => {
     testFirebaseConnection();
     setIsFirebaseConnected(navigator.onLine);
@@ -794,11 +816,8 @@ export default function App() {
 
       const message = `🔔 تنبيه استباقي: ${upcomingOrOverdue}. يرجى إنجازه في أقرب وقت.`;
 
-      // Show in-app Toast
-      setToast({
-        type: 'info',
-        message: message,
-      });
+      // Show in-app custom Snackbar Reminder
+      setReminderMessage(message);
 
       // Show Browser Push Notification
       if (window.Notification && Notification.permission === 'granted') {
@@ -892,6 +911,7 @@ export default function App() {
           onOpenStudentMessages={() => setIsTeacherMessagesModalOpen(true)}
           isFirebaseConnected={isFirebaseConnected}
           onLogout={handleLogout}
+          isInstallable={isInstallable}
         />
       )}
 
@@ -909,6 +929,7 @@ export default function App() {
             records={records}
             selectedTerm={selectedTerm}
             academicYear={academicYear}
+            isInstallable={isInstallable}
             onOpenAssessment={(month, num, term) => {
               setSelectedTerm(term);
               setSelectedMonth(month);
@@ -1208,6 +1229,13 @@ export default function App() {
 
       {/* Toast Notification */}
       <Toast toast={toast} onDismiss={() => setToast(null)} />
+      {reminderMessage && (
+        <SnackbarReminder 
+          message={reminderMessage} 
+          onDismiss={() => setReminderMessage(null)} 
+          duration={15000} 
+        />
+      )}
 
     </div>
   );

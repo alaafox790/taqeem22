@@ -21,6 +21,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { TeacherProfile, AppTab } from '../types';
+import { InstallButton } from './InstallButton';
 import { isTeacherProfileComplete } from '../lib/validation';
 
 interface NavbarProps {
@@ -33,6 +34,7 @@ interface NavbarProps {
   onOpenStudentMessages?: () => void;
   isFirebaseConnected?: boolean;
   onLogout?: () => void;
+  isInstallable?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -45,6 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenStudentMessages,
   isFirebaseConnected = true,
   onLogout,
+  isInstallable,
 }) => {
   const isComplete = isTeacherProfileComplete(teacher);
 
