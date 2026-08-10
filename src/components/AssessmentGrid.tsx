@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Award, Lock, AlertCircle, ShieldCheck, Unlock, ArrowRight } from 'lucide-react';
+import { Award, Lock, AlertCircle, ShieldCheck, CheckSquare, Square, Trash2, Edit } from 'lucide-react';
 import { MonthInfo, AssessmentRecord, TeacherProfile } from '../types';
 import { getAdjustedDueDate } from '../lib/validation';
 import { playAlertSoundAndVibrate } from '../lib/sound';
@@ -12,6 +12,7 @@ interface AssessmentGridProps {
   academicYear: string;
   teacherId: string;
   showToast?: (type: 'success' | 'error' | 'info', title: string, message?: string) => void;
+  onMultiAction?: (nums: number[], action: 'record' | 'delete') => void;
 }
 
 export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
@@ -22,8 +23,11 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
   teacherId,
   teacher,
   showToast,
+  onMultiAction
 }) => {
   const [showAllAssessments, setShowAllAssessments] = useState(false);
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedAssessments, setSelectedAssessments] = useState<number[]>([]);
 
   // Sequential Unlock Rule State (Default to true as requested)
   const [enforceSequential, setEnforceSequential] = useState<boolean>(() => {
@@ -45,15 +49,54 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
     }
   };
 
+  const handleToggleMultiSelect = (val: boolean) => {
+    setIsMultiSelectMode(val);
+    if (!val) {
+      setSelectedAssessments([]);
+    }
+  };
+
+  const handleAssessmentClick = (num: number, isLocked: boolean, prevNum: number | null) => {
+    if (isMultiSelectMode) {
+      if (isLocked) {
+        playAlertSoundAndVibrate();
+        if (showToast) {
+          showToast(
+            'info',
+            `التقييم ${num} مغلق تتابعياً 🔒`,
+            `لا يمكن تحديد تقييم مغلق. يرجى إيقاف خيار (القفل التتابعي) أولاً.`
+          );
+        }
+        return;
+      }
+      setSelectedAssessments(prev => 
+        prev.includes(num) ? prev.filter(n => n !== num) : [...prev, num]
+      );
+    } else {
+      if (isLocked) {
+        playAlertSoundAndVibrate();
+        if (showToast) {
+          showToast(
+            'info',
+            `التقييم ${num} مغلق تتابعياً 🔒`,
+            `يرجى إدخال وتوثيق نتائج (تقييم ${prevNum}) أولاً لفتح التقييم التالي تلقائياً، أو قم بإيقاف خيار (القفل التتابعي) بأعلى الشاشة.`
+          );
+        }
+        return;
+      }
+      onSelectAssessment(num);
+    }
+  };
+
   // Array 1 to 15 or current month assessments
   const assessmentsList = showAllAssessments 
     ? Array.from({ length: 15 }, (_, i) => i + 1)
     : selectedMonth.assessments;
 
   return (
-    <div className="bg-white rounded-b-xl border border-t-0 border-slate-200 p-4 sm:p-6 pt-4 space-y-4">
+    <div className="bg-white rounded-b-xl border border-t-0 border-slate-200 p-4 sm:p-6 pt-4 space-y-4 relative">
       {/* Header and Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
           <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
             <Award className="w-5 h-5 text-amber-500" />
@@ -66,7 +109,21 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Multi Select Toggle Switch */}
+          <label className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-200 cursor-pointer transition-colors">
+            <input 
+              type="checkbox" 
+              checked={isMultiSelectMode}
+              onChange={(e) => handleToggleMultiSelect(e.target.checked)}
+              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-indigo-300"
+            />
+            <span className="text-xs font-extrabold text-indigo-800 select-none flex items-center gap-1">
+              <CheckSquare className="w-3.5 h-3.5" />
+              <span>وضع الاختيار المتعدد</span>
+            </span>
+          </label>
+
           {/* Sequential Toggle Switch */}
           <label className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 cursor-pointer transition-colors">
             <input 
@@ -77,7 +134,7 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
             />
             <span className="text-xs font-extrabold text-slate-700 select-none flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-sky-600" />
-              <span>القفل التتابعي (فتح التقييم تلو الآخر)</span>
+              <span>القفل التتابعي</span>
             </span>
           </label>
 
@@ -89,10 +146,36 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
               onChange={(e) => setShowAllAssessments(e.target.checked)}
               className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300"
             />
-            <span className="text-xs font-extrabold text-slate-700 select-none">إظهار كل التقييمات (15)</span>
+            <span className="text-xs font-extrabold text-slate-700 select-none">الكل (15)</span>
           </label>
         </div>
       </div>
+
+      {/* Multi-Select Action Bar */}
+      {isMultiSelectMode && selectedAssessments.length > 0 && (
+        <div className="bg-indigo-600 text-white p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-md animate-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <CheckSquare className="w-5 h-5 text-indigo-200" />
+            <span className="font-bold text-sm">تم تحديد {selectedAssessments.length} تقييمات</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onMultiAction && onMultiAction(selectedAssessments, 'record')}
+              className="px-3 py-1.5 bg-white text-indigo-700 hover:bg-indigo-50 rounded-lg text-xs font-black flex items-center gap-1.5 transition-colors shadow-sm"
+            >
+              <Edit className="w-3.5 h-3.5" />
+              تسجيل التحديد
+            </button>
+            <button
+              onClick={() => onMultiAction && onMultiAction(selectedAssessments, 'delete')}
+              className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-xs font-black flex items-center gap-1.5 transition-colors shadow-sm"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              حذف التحديد
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Grid of Assessments */}
       <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3 sm:gap-4">
@@ -123,11 +206,6 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
             : 0;
 
           // Sequential Lock Condition:
-          // Unlocked if:
-          // 1) First assessment in month (or num === 1)
-          // 2) OR previous assessment has at least 1 record
-          // 3) OR this assessment already has records
-          // 4) OR enforceSequential is turned OFF
           const isSequentiallyUnlocked = 
             !enforceSequential || 
             idxInMonth <= 0 || 
@@ -154,43 +232,12 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
             );
           }
 
-          // If locked sequentially
-          if (!isSequentiallyUnlocked) {
-            return (
-              <button
-                key={num}
-                type="button"
-                onClick={() => {
-                  playAlertSoundAndVibrate();
-                  if (showToast) {
-                    showToast(
-                      'info',
-                      `التقييم ${num} مغلق تتابعياً 🔒`,
-                      `يرجى إدخال وتوثيق نتائج (تقييم ${prevNum}) أولاً لفتح التقييم التالي تلقائياً، أو قم بإيقاف خيار (القفل التتابعي) بأعلى الشاشة.`
-                    );
-                  }
-                }}
-                className="relative aspect-square bg-slate-100 hover:bg-slate-200/80 rounded-2xl flex flex-col items-center justify-center text-slate-500 cursor-pointer transition-all border-2 border-dashed border-slate-300 p-2 group shadow-inner"
-              >
-                <div className="absolute top-2 right-2 bg-slate-300 text-slate-700 text-[10px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-1">
-                  <Lock className="w-2.5 h-2.5" />
-                  <span>مغلق</span>
-                </div>
-
-                <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <span className="text-xs sm:text-sm font-black text-slate-700">تقييم {num}</span>
-                <span className="text-[10px] text-slate-500 font-bold mt-0.5 text-center line-clamp-1">
-                  ينتظر تقييم {prevNum}
-                </span>
-              </button>
-            );
-          }
+          const isSelected = selectedAssessments.includes(num);
+          const isLocked = !isSequentiallyUnlocked;
 
           // Check if Overdue
           let isOverdue = false;
-          if (recordedCount === 0) {
+          if (recordedCount === 0 && !isLocked) {
             try {
               const [year1, year2] = academicYear.split('/').map(Number);
               if (year1 && year2) {
@@ -226,6 +273,31 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
             }
           }
 
+          // Locked Card UI
+          if (isLocked) {
+            return (
+              <button
+                key={num}
+                type="button"
+                onClick={() => handleAssessmentClick(num, true, prevNum)}
+                className="relative aspect-square bg-slate-100 hover:bg-slate-200/80 rounded-2xl flex flex-col items-center justify-center text-slate-500 cursor-pointer transition-all border-2 border-dashed border-slate-300 p-2 group shadow-inner"
+              >
+                <div className="absolute top-2 right-2 bg-slate-300 text-slate-700 text-[10px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                  <Lock className="w-2.5 h-2.5" />
+                  <span>مغلق</span>
+                </div>
+
+                <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <span className="text-xs sm:text-sm font-black text-slate-700">تقييم {num}</span>
+                <span className="text-[10px] text-slate-500 font-bold mt-0.5 text-center line-clamp-1">
+                  ينتظر تقييم {prevNum}
+                </span>
+              </button>
+            );
+          }
+
           // Unlocked & Available Card UI
           const colorClass = selectedMonth.color || 'bg-[#ea580c] hover:bg-[#d97706]';
           const weekText = idxInMonth >= 0 ? `الأسبوع ${idxInMonth + 1}` : '';
@@ -234,11 +306,21 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
             <button
               key={num}
               type="button"
-              onClick={() => onSelectAssessment(num)}
-              className={`relative aspect-square ${colorClass} transition-all rounded-2xl flex flex-col items-center justify-center text-white cursor-pointer shadow-md hover:shadow-lg active:scale-95 p-2 group`}
+              onClick={() => handleAssessmentClick(num, false, prevNum)}
+              className={`relative aspect-square ${isSelected ? 'bg-indigo-600 shadow-indigo-200 shadow-lg scale-105 z-10' : colorClass} transition-all rounded-2xl flex flex-col items-center justify-center text-white cursor-pointer shadow-md hover:shadow-lg p-2 group ${!isMultiSelectMode && 'active:scale-95'}`}
             >
+              {isMultiSelectMode && (
+                <div className="absolute top-2 left-2 z-20">
+                  {isSelected ? (
+                    <CheckSquare className="w-5 h-5 text-white" />
+                  ) : (
+                    <Square className="w-5 h-5 text-white/50" />
+                  )}
+                </div>
+              )}
+
               {recordedCount > 0 ? (
-                <div className="absolute top-2 right-2 bg-white text-slate-900 text-xs font-black w-6 h-6 rounded-full flex items-center justify-center shadow-md">
+                <div className={`absolute top-2 right-2 ${isSelected ? 'bg-indigo-500' : 'bg-white text-slate-900'} text-xs font-black w-6 h-6 rounded-full flex items-center justify-center shadow-md`}>
                   {recordedCount}
                 </div>
               ) : (
@@ -249,13 +331,13 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
                 )
               )}
 
-              {isOverdue && recordedCount === 0 && (
+              {isOverdue && recordedCount === 0 && !isSelected && (
                 <div className="absolute top-2 left-2 bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-md shadow-sm animate-pulse flex items-center gap-1 font-bold z-10 border border-rose-400">
                   <AlertCircle className="w-3 h-3" /> متأخر
                 </div>
               )}
 
-              <Award className="w-7 h-7 mb-1 opacity-95 group-hover:scale-110 transition-transform" />
+              <Award className={`w-7 h-7 mb-1 opacity-95 transition-transform ${isSelected ? 'scale-110' : 'group-hover:scale-110'}`} />
               <span className="text-xs sm:text-sm font-black">تقييم {num}</span>
             </button>
           );
@@ -264,4 +346,5 @@ export const AssessmentGrid: React.FC<AssessmentGridProps> = ({
     </div>
   );
 };
+
 

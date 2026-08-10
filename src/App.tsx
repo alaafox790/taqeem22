@@ -13,6 +13,7 @@ import { LateAssessments } from './components/LateAssessments';
 import { AdminDashboard, ManagementSessionData } from './components/AdminDashboard';
 import { StudentReportsScreen } from './components/StudentReportsScreen';
 import { AssessmentModal } from './components/AssessmentModal';
+import { MultiAssessmentModal } from './components/MultiAssessmentModal';
 import { DuplicateConfirmModal } from './components/DuplicateConfirmModal';
 import { TeacherProfileModal } from './components/TeacherProfileModal';
 import { RemindersModal } from './components/RemindersModal';
@@ -285,6 +286,8 @@ export default function App() {
   // Modal UI states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [activeAssessNum, setActiveAssessNum] = useState<number | null>(null);
+  const [activeMultiAssessNums, setActiveMultiAssessNums] = useState<number[] | null>(null);
+  const [multiActionMode, setMultiActionMode] = useState<'record' | 'delete' | null>(null);
 
   // Duplicate Check Modal state
   const [duplicateModal, setDuplicateModal] = useState<{
@@ -401,7 +404,8 @@ export default function App() {
   // Handler: Attempting to save an assessment record
   const handleAssessmentSubmit = (
     partialRecord: Partial<AssessmentRecord>,
-    isExceptionalConfirmed?: boolean
+    isExceptionalConfirmed?: boolean,
+    keepOpen?: boolean
   ) => {
     // Check if an assessment record already exists for the exact same grade, class, and assessment number
     const duplicate = records.find(
@@ -443,14 +447,15 @@ export default function App() {
       return;
     }
 
-    executeSaveRecord(partialRecord, undefined, isExceptionalConfirmed);
+    executeSaveRecord(partialRecord, undefined, isExceptionalConfirmed, keepOpen);
   };
 
   // Execute Save Record
   const executeSaveRecord = async (
     recordData: Partial<AssessmentRecord>,
     existingIdToReplace?: string,
-    isExceptionalConfirmed?: boolean
+    isExceptionalConfirmed?: boolean,
+    keepOpen?: boolean
   ) => {
     const finalRecord: AssessmentRecord = {
       id: existingIdToReplace || `rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -473,7 +478,9 @@ export default function App() {
 
     if (fbRes.success) {
       await loadData();
-      setActiveAssessNum(null);
+      if (!keepOpen) {
+        setActiveAssessNum(null);
+      }
       setDuplicateModal({ isOpen: false });
 
       if (existingIdToReplace) {
@@ -648,6 +655,76 @@ export default function App() {
     } catch (e) {
       console.error('Failed to delete assessment for class:', e);
       showToast('error', 'خطأ في المسح', 'حدث خطأ أثناء محاولة التراجع عن التقييم.');
+    }
+  };
+
+  const handleMultiAssessmentSubmit = async (recordsToSave: Partial<AssessmentRecord>[]) => {
+    let successCount = 0;
+    for (const record of recordsToSave) {
+      const finalRecord: AssessmentRecord = {
+        id: `rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        teacher_id: record.teacher_id!,
+        academic_year: record.academic_year!,
+        term_id: record.term_id!,
+        month_id: record.month_id!,
+        assess_num: record.assess_num!,
+        grade: record.grade!,
+        class_num: record.class_num!,
+        assess_date: record.assess_date!,
+        notes: record.notes || '',
+        created_at: new Date().toISOString(),
+        timing_status: record.timing_status || 'normal',
+        timing_period: record.timing_period || 'start',
+        model_form: record.model_form || 'أ',
+      };
+      
+      const fbRes = await saveFirebaseAssessmentRecord(finalRecord);
+      if (fbRes.success) successCount++;
+    }
+
+    await loadData();
+    setActiveMultiAssessNums(null);
+    setMultiActionMode(null);
+    
+    if (successCount > 0) {
+      showToast('success', 'تم التسجيل المتعدد', `تم حفظ ${successCount} تقييم(ات) بنجاح.`);
+    } else {
+      showToast('error', 'فشل التسجيل المتعدد', 'تعذر حفظ التقييمات.');
+    }
+  };
+
+  const handleMultiDeleteAssessment = async (grade: string, classNum: number, assessNums: number[]) => {
+    try {
+      const recordsToDelete = records.filter(
+        r => r.grade === grade && r.class_num === classNum && assessNums.includes(r.assess_num) && r.term_id === selectedTerm
+      );
+      
+      if (recordsToDelete.length === 0) {
+        showToast('info', 'لا يوجد ما يُحذف', 'التقييمات المحددة غير مسجلة لهذا الفصل.');
+        setActiveMultiAssessNums(null);
+        setMultiActionMode(null);
+        return;
+      }
+
+      const newRecords = records.filter(
+        r => !(r.grade === grade && r.class_num === classNum && assessNums.includes(r.assess_num) && r.term_id === selectedTerm)
+      );
+      setRecords(newRecords);
+
+      const ARCHIVE_STORAGE_KEY = 'school_assessments_archive_v1';
+      localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(newRecords));
+
+      for (const r of recordsToDelete) {
+        await deleteFirebaseAssessmentRecord(r.id);
+      }
+      
+      showToast('info', 'تم التراجع الجماعي', `تم مسح ${recordsToDelete.length} تقييم(ات) للصف ${grade} فصل ${classNum} بنجاح.`);
+    } catch (e) {
+      console.error('Failed to delete multiple assessments:', e);
+      showToast('error', 'خطأ في المسح المتعدد', 'حدث خطأ أثناء محاولة التراجع عن التقييمات.');
+    } finally {
+      setActiveMultiAssessNums(null);
+      setMultiActionMode(null);
     }
   };
 
@@ -879,6 +956,10 @@ export default function App() {
                 teacherId={teacher.id}
                 teacher={teacher}
                 showToast={showToast}
+                onMultiAction={(nums, action) => {
+                  setActiveMultiAssessNums(nums);
+                  setMultiActionMode(action);
+                }}
               />
               
               <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-rose-50/50 rounded-b-xl">
@@ -1025,6 +1106,26 @@ export default function App() {
           records={records}
           onSave={handleAssessmentSubmit}
           onDeleteAssessmentForClass={handleDeleteAssessmentForClass}
+        />
+      )}
+
+      {activeMultiAssessNums && multiActionMode && (
+        <MultiAssessmentModal
+          isOpen={true}
+          onClose={() => {
+            setActiveMultiAssessNums(null);
+            setMultiActionMode(null);
+          }}
+          assessNums={activeMultiAssessNums}
+          mode={multiActionMode}
+          selectedMonth={dynamicSelectedMonth}
+          academicYear={academicYear}
+          selectedTerm={selectedTerm}
+          teacherId={teacher.id}
+          teacher={teacher}
+          records={records}
+          onSaveMultiple={handleMultiAssessmentSubmit}
+          onDeleteMultiple={handleMultiDeleteAssessment}
         />
       )}
 

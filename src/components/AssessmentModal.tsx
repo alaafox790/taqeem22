@@ -14,7 +14,7 @@ interface AssessmentModalProps {
   teacherId: string;
   teacher?: TeacherProfile;
   records?: AssessmentRecord[];
-  onSave: (recordData: Partial<AssessmentRecord>, isExceptionalConfirmed?: boolean) => void;
+  onSave: (recordData: Partial<AssessmentRecord>, isExceptionalConfirmed?: boolean, keepOpen?: boolean) => void;
   onDeleteAssessmentForClass?: (grade: string, classNum: number, assessNum: number) => void;
 }
 
@@ -177,8 +177,8 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
   // Check official holiday based on teacher profile data
   const officialHolidayCheck = checkOfficialHoliday(assessDate, teacher?.officialHolidays);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e: React.FormEvent, keepOpen: boolean = false) => {
+    if (e.preventDefault) e.preventDefault();
     setValidationError(null);
 
     // Validation checks
@@ -245,7 +245,19 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
       holiday_desc: isHoliday ? holidayDesc : undefined
     };
 
-    onSave(partialRecord, timingResult.isExceptional);
+    onSave(partialRecord, timingResult.isExceptional, keepOpen);
+
+    if (keepOpen) {
+      if (classNum < CLASSES_COUNT) {
+        setClassNum(classNum + 1);
+      } else {
+        setClassNum(1);
+        const gradeIndex = GRADES.indexOf(grade);
+        if (gradeIndex >= 0 && gradeIndex < GRADES.length - 1) {
+          setGrade(GRADES[gradeIndex + 1]);
+        }
+      }
+    }
   };
 
   return (
@@ -532,8 +544,20 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
 
           {/* Actions Footer */}
           <div className="flex flex-col gap-2 pt-2">
+            {!notes && !isHoliday && !existingRecord && !sameDateOtherRecord && !validationError && (
+              <button
+                type="button"
+                onClick={(e) => handleSubmit(e, true)}
+                className="w-full py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+                title="تسريع عملية تسجيل التقييمات المتكررة للفصول الأخرى"
+              >
+                <span>حفظ سريع (ومتابعة التسجيل)</span>
+                <Zap className="w-4 h-4" />
+              </button>
+            )}
             <button
               type="submit"
+              onClick={(e) => handleSubmit(e, false)}
               className="w-full py-2.5 rounded-lg bg-[#0ea5e9] hover:bg-[#0284c7] text-white text-sm font-bold flex items-center justify-center gap-2 transition-colors"
             >
               <span>حفظ</span>
