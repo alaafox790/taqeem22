@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { isTeacherProfileComplete } from '../lib/validation';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { LateAssessments } from './LateAssessments';
+import { InstallPWA } from './InstallPWA';
 
 interface HomeScreenProps {
   onNavigate: (tab: AppTab) => void;
@@ -103,6 +104,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <span>تسجيل الخروج</span>
             </button>
           )}
+          <InstallPWA />
         </div>
 
         <button
