@@ -6,6 +6,13 @@ import './index.css';
 // Register Service Worker
 import { registerSW } from 'virtual:pwa-register';
 
+// Capture the install prompt globally
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  (window as any).deferredPrompt = e;
+  window.dispatchEvent(new Event('pwa-prompt-ready'));
+});
+
 const updateSW = registerSW({
   onNeedRefresh() {
     if (confirm('تحديث جديد متاح. هل ترغب في تحديث التطبيق؟')) {
