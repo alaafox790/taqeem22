@@ -6,6 +6,7 @@ import {
   Check, 
   RefreshCw, 
   Eye, 
+  EyeOff,
   Sparkles, 
   CheckCircle2, 
   XCircle, 
@@ -102,6 +103,8 @@ interface SettingsScreenProps {
   teacher?: TeacherProfile;
   isFirebaseConnected?: boolean;
   onManualCloudSync?: () => Promise<void>;
+  focusMode?: boolean;
+  onToggleFocusMode?: (enabled: boolean) => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
@@ -115,6 +118,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   teacher,
   isFirebaseConnected = true,
   onManualCloudSync,
+  focusMode = false,
+  onToggleFocusMode,
 }) => {
   const [colors, setColors] = useState<StatusColors>(statusColors);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -560,6 +565,105 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <Check className="w-4 h-4" />
             <span>حفظ الألوان والتطبيق</span>
           </button>
+        </div>
+      </div>
+
+      {/* Focus Mode Setting Card (وضع التركيز لتقليل التشتت أثناء رصد التقييمات) */}
+      <div className="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 border border-teal-500/40 text-white rounded-3xl p-5 sm:p-6 shadow-md space-y-4 relative overflow-hidden">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-teal-500/20 pb-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-teal-500/20 border border-teal-400/30 text-teal-300 flex items-center justify-center shadow-md shrink-0">
+              {focusMode ? <EyeOff className="w-6 h-6 text-teal-300" /> : <Eye className="w-6 h-6 text-slate-400" />}
+            </div>
+            <div>
+              <h3 className="font-black text-white text-base sm:text-lg flex items-center gap-2">
+                <span>وضع التركيز (Focus Mode)</span>
+                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                  focusMode 
+                    ? 'bg-teal-500/20 text-teal-300 border-teal-500/40' 
+                    : 'bg-slate-700/50 text-slate-300 border-slate-600'
+                }`}>
+                  {focusMode ? 'مفعّل 🎯' : 'معطّل'}
+                </span>
+              </h3>
+              <p className="text-xs text-teal-200/80 font-medium mt-0.5">
+                إخفاء العناصر غير الضرورية والتأثيرات الزائدة في الشاشة الرئيسية عند تسجيل التقييمات لتقليل تشتت المعلم وزيادة التركيز والسرعة.
+              </p>
+            </div>
+          </div>
+
+          {/* Toggle Switch */}
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={focusMode}
+              onClick={() => {
+                const next = !focusMode;
+                if (onToggleFocusMode) onToggleFocusMode(next);
+                if (showToast) {
+                  showToast(
+                    next ? 'success' : 'info',
+                    next ? 'تم تفعيل وضع التركيز 🎯' : 'تم إيقاف وضع التركيز',
+                    next 
+                      ? 'تم إخفاء العناصر غير الضرورية لتقليل التشتت أثناء رصد التقييمات.'
+                      : 'تمت استعادة العرض الكامل لجميع عناصر الشاشة الرئيسية.'
+                  );
+                }
+              }}
+              className={`relative inline-flex h-8 w-16 items-center rounded-full p-1 transition-colors duration-300 cursor-pointer shadow-inner ${
+                focusMode ? 'bg-gradient-to-r from-teal-500 to-emerald-500' : 'bg-slate-700'
+              }`}
+              title={focusMode ? 'إيقاف وضع التركيز' : 'تفعيل وضع التركيز'}
+            >
+              <span
+                className={`inline-block h-6 w-6 rounded-full bg-white transition-all duration-300 shadow-md flex items-center justify-center text-[10px] font-black ${
+                  focusMode ? 'translate-x-0 text-teal-700' : 'translate-x-8 text-slate-600'
+                }`}
+              >
+                {focusMode ? '✓' : '✕'}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Focus Mode Summary Highlights */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+          <div className={`p-3 rounded-2xl border transition-all ${
+            focusMode 
+              ? 'bg-teal-900/30 border-teal-500/30 text-teal-200' 
+              : 'bg-slate-800/40 border-slate-700/50 text-slate-400'
+          }`}>
+            <div className="font-bold flex items-center gap-1.5 mb-1 text-white">
+              <Check className="w-3.5 h-3.5 text-teal-400" />
+              <span>واجهة هادئة ونقية</span>
+            </div>
+            <p className="text-[11px] leading-relaxed">التركيز المباشر على بطاقات التقييم وقوائم الطلاب بدون عناصر جانبية مشتتة.</p>
+          </div>
+
+          <div className={`p-3 rounded-2xl border transition-all ${
+            focusMode 
+              ? 'bg-teal-900/30 border-teal-500/30 text-teal-200' 
+              : 'bg-slate-800/40 border-slate-700/50 text-slate-400'
+          }`}>
+            <div className="font-bold flex items-center gap-1.5 mb-1 text-white">
+              <Check className="w-3.5 h-3.5 text-teal-400" />
+              <span>إخفاء التأثيرات والمشتتات</span>
+            </div>
+            <p className="text-[11px] leading-relaxed">إخفاء العناصر غير الضرورية والروابط الترويجية والتأثيرات الحركية الزائدة.</p>
+          </div>
+
+          <div className={`p-3 rounded-2xl border transition-all ${
+            focusMode 
+              ? 'bg-teal-900/30 border-teal-500/30 text-teal-200' 
+              : 'bg-slate-800/40 border-slate-700/50 text-slate-400'
+          }`}>
+            <div className="font-bold flex items-center gap-1.5 mb-1 text-white">
+              <Check className="w-3.5 h-3.5 text-teal-400" />
+              <span>اختصارات التقييم السريع</span>
+            </div>
+            <p className="text-[11px] leading-relaxed">إبراز التقييمات الحالية لتسجيل رصد الدرجات بأعلى سرعة وفاعلية.</p>
+          </div>
         </div>
       </div>
 

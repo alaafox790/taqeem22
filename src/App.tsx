@@ -150,6 +150,25 @@ export default function App() {
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(true);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState<boolean>(false);
 
+  // Focus Mode state (وضع التركيز لتقليل التشتت أثناء رصد التقييمات)
+  const FOCUS_MODE_STORAGE_KEY = 'school_assessments_focus_mode_v1';
+  const [focusMode, setFocusMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(FOCUS_MODE_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleFocusMode = (enabled: boolean) => {
+    setFocusMode(enabled);
+    try {
+      localStorage.setItem(FOCUS_MODE_STORAGE_KEY, String(enabled));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Archive state & Vault storage
   const ARCHIVED_TERMS_STORAGE_KEY = 'school_assessments_archived_terms_v1';
   const [archivedTermsList, setArchivedTermsList] = useState<ArchivedTermItem[]>(() => {
@@ -940,6 +959,8 @@ export default function App() {
             selectedTerm={selectedTerm}
             academicYear={academicYear}
             isInstallable={isInstallable}
+            focusMode={focusMode}
+            onToggleFocusMode={handleToggleFocusMode}
             onOpenAssessment={(month, num, term) => {
               setSelectedTerm(term);
               setSelectedMonth(month);
@@ -1090,6 +1111,8 @@ export default function App() {
               records={records}
               teacher={teacher}
               isFirebaseConnected={isFirebaseConnected}
+              focusMode={focusMode}
+              onToggleFocusMode={handleToggleFocusMode}
               onManualCloudSync={async () => {
                 await testFirebaseConnection();
               }}

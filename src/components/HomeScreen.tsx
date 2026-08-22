@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Award, GraduationCap, BarChart3, Search, Shield,
-  MessageCircle, LogOut, Settings, AlertTriangle, CheckCircle2, UserCheck, Lock, Calendar, BellRing, Check, User, Users, Plus, ScrollText, FolderArchive, MessageSquare } from 'lucide-react';
+  MessageCircle, LogOut, Settings, AlertTriangle, CheckCircle2, UserCheck, Lock, Calendar, BellRing, Check, User, Users, Plus, ScrollText, FolderArchive, MessageSquare, Eye, EyeOff, Zap, ChevronLeft } from 'lucide-react';
 import { AppTab, TeacherProfile, AssessmentRecord, MonthInfo, TermId, Reminder } from '../types';
 import { MONTHS_DATA } from '../lib/constants';
 import { motion, AnimatePresence } from 'motion/react';
@@ -24,6 +24,8 @@ interface HomeScreenProps {
   onOpenRemindersModal: () => void;
   onToggleReminderComplete: (id: string) => void;
   isInstallable?: boolean;
+  focusMode?: boolean;
+  onToggleFocusMode?: (enabled: boolean) => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -40,7 +42,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   reminders,
   onOpenRemindersModal,
   onToggleReminderComplete,
-  isInstallable
+  isInstallable,
+  focusMode = false,
+  onToggleFocusMode
 }) => {
   const [showAltText, setShowAltText] = useState(false);
   const [showIncompleteNotice, setShowIncompleteNotice] = useState(false);
@@ -48,11 +52,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const isComplete = isTeacherProfileComplete(teacher);
 
   useEffect(() => {
+    if (focusMode) return;
     const timer = setInterval(() => {
       setShowAltText(prev => !prev);
     }, 30000);
     return () => clearInterval(timer);
-  }, []);
+  }, [focusMode]);
 
   const handleCardClick = (targetTab: AppTab) => {
     if (!isComplete) {
@@ -83,17 +88,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const recordedMonthAssessments = currentMonthRecords.length;
   const remainingMonthAssessments = Math.max(0, totalExpectedMonthAssessments - recordedMonthAssessments);
 
-  const chartData = activeMonth ? activeMonth.assessments.map(assessNum => {
-    const count = currentMonthRecords.filter(r => r.assess_num === assessNum).length;
-    return {
-      name: `ت ${assessNum}`,
-      المسجل: count,
-    };
-  }) : [];
-
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-start p-3 sm:p-4 space-y-4 sm:space-y-6">
-      {/* Top Bar for Profile and Logout */}
+      {/* Top Bar for Profile, Focus Mode Toggle and Logout */}
       <div className="w-full max-w-2xl flex justify-between items-center gap-2">
         <div className="flex items-center gap-2">
           {onLogout && (
@@ -107,6 +104,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </button>
           )}
           {isInstallable && <InstallButton />}
+
+          {/* Quick Focus Mode Badge/Button */}
+          {onToggleFocusMode && (
+            <button
+              onClick={() => onToggleFocusMode(!focusMode)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm border ${
+                focusMode 
+                  ? 'bg-teal-600 hover:bg-teal-700 text-white border-teal-500' 
+                  : 'bg-white/80 hover:bg-slate-50 text-slate-700 border-slate-200'
+              }`}
+              title={focusMode ? 'إيقاف وضع التركيز' : 'تفعيل وضع التركيز'}
+            >
+              {focusMode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 text-teal-600" />}
+              <span>{focusMode ? 'وضع التركيز مفعّل 🎯' : 'وضع التركيز'}</span>
+            </button>
+          )}
         </div>
 
         <button
@@ -131,62 +144,139 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </button>
       </div>
 
-      {/* Header */}
+      {/* Header Banner - Streamlined in Focus Mode */}
       <div className="text-center space-y-2.5 flex flex-col items-center relative w-full max-w-2xl">
-        {/* Glow blobs for book palette atmosphere */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
-        <div className="absolute top-20 left-0 w-72 h-72 bg-amber-300/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
-        <div className="absolute -bottom-20 left-20 w-64 h-64 bg-sky-400/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
+        {/* Glow blobs - only when focusMode is off */}
+        {!focusMode && (
+          <>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
+            <div className="absolute top-20 left-0 w-72 h-72 bg-amber-300/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
+            <div className="absolute -bottom-20 left-20 w-64 h-64 bg-sky-400/20 rounded-full blur-3xl -z-10 mix-blend-multiply"></div>
+          </>
+        )}
         
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: -20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="relative inline-flex flex-col items-center justify-center px-8 py-5 sm:px-12 sm:py-6 rounded-3xl bg-white/90 backdrop-blur-2xl border border-sky-100 shadow-[0_15px_40px_rgba(15,43,92,0.12)] overflow-hidden w-full"
+          transition={{ duration: 0.4 }}
+          className={`relative inline-flex flex-col items-center justify-center px-6 py-4 sm:px-10 sm:py-5 rounded-3xl bg-white/95 backdrop-blur-2xl border shadow-[0_15px_40px_rgba(15,43,92,0.08)] overflow-hidden w-full ${
+            focusMode ? 'border-teal-300 ring-2 ring-teal-500/20' : 'border-sky-100 shadow-[0_15px_40px_rgba(15,43,92,0.12)]'
+          }`}
         >
-          {/* Shiny sweep effect */}
-          <div className="absolute inset-0 -translate-x-[150%] animate-[shimmer_3.5s_infinite] bg-gradient-to-r from-transparent via-amber-200/40 to-transparent skew-x-12 w-[150%]"></div>
+          {!focusMode && (
+            <div className="absolute inset-0 -translate-x-[150%] animate-[shimmer_3.5s_infinite] bg-gradient-to-r from-transparent via-amber-200/40 to-transparent skew-x-12 w-[150%]"></div>
+          )}
           
-          <h1 className="relative text-5xl sm:text-6xl md:text-7xl font-bold bg-gradient-to-r from-[#0f2b5c] via-[#059669] to-[#0f2b5c] bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(15,43,92,0.2)] font-serif tracking-tight">
-            تقييماتي
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="relative text-4xl sm:text-5xl md:text-6xl font-bold bg-gradient-to-r from-[#0f2b5c] via-[#059669] to-[#0f2b5c] bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(15,43,92,0.15)] font-serif tracking-tight">
+              تقييماتي
+            </h1>
+            {focusMode && (
+              <span className="px-2.5 py-1 rounded-full bg-teal-600 text-white text-[11px] font-black shadow-xs flex items-center gap-1">
+                <Zap className="w-3 h-3 text-amber-300" />
+                <span>وضع التركيز</span>
+              </span>
+            )}
+          </div>
 
-          <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-            <span className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#0f2b5c] via-[#059669] to-[#0f2b5c] text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-700/20 tracking-wide">
+          <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
+            <span className="px-3.5 py-1 rounded-full bg-gradient-to-r from-[#0f2b5c] via-[#059669] to-[#0f2b5c] text-white text-xs font-bold shadow-xs tracking-wide">
               {teacher.educationalStage || 'المرحلة الابتدائية'}
             </span>
-
           </div>
 
-          <div className="w-full border-t border-sky-100 mt-2.5 pt-1.5 min-h-[28px] flex items-center justify-center cursor-pointer select-none" onClick={() => setShowAltText(prev => !prev)}>
-            <AnimatePresence mode="wait">
-              {showAltText ? (
-                <motion.p
-                  key="alt-text"
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  transition={{ duration: 0.4 }}
-                  className="text-xs sm:text-sm font-bold text-rose-600 tracking-widest text-center"
-                >
-                  مدمرة حياتي
-                </motion.p>
-              ) : (
-                <motion.p
-                  key="main-text"
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  transition={{ duration: 0.4 }}
-                  className="text-xs sm:text-sm font-extrabold text-[#0f2b5c]/90 tracking-widest text-center"
-                >
-                  منصة التقييمات المدرسية الشاملة
-                </motion.p>
-              )}
-            </AnimatePresence>
-          </div>
+          {!focusMode ? (
+            <div className="w-full border-t border-sky-100 mt-2.5 pt-1.5 min-h-[28px] flex items-center justify-center cursor-pointer select-none" onClick={() => setShowAltText(prev => !prev)}>
+              <AnimatePresence mode="wait">
+                {showAltText ? (
+                  <motion.p
+                    key="alt-text"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.4 }}
+                    className="text-xs sm:text-sm font-bold text-rose-600 tracking-widest text-center"
+                  >
+                    مدمرة حياتي
+                  </motion.p>
+                ) : (
+                  <motion.p
+                    key="main-text"
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.4 }}
+                    className="text-xs sm:text-sm font-extrabold text-[#0f2b5c]/90 tracking-widest text-center"
+                  >
+                    منصة التقييمات المدرسية الشاملة
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <div className="w-full border-t border-teal-100 mt-2 pt-1.5 flex items-center justify-center text-xs font-bold text-teal-800">
+              <span>🎯 تم تفعيل وضع التركيز لتسجيل التقييمات بسرعة وبدون تشتيت</span>
+            </div>
+          )}
         </motion.div>
       </div>
+
+      {/* FOCUS MODE: Quick Assessment Launchpad */}
+      {focusMode && activeMonth && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-2xl bg-gradient-to-r from-teal-900 via-slate-900 to-emerald-950 text-white rounded-3xl p-4 sm:p-5 shadow-xl border border-teal-500/40 space-y-3"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center">
+                <Zap className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white">الرصد السريع: {activeMonth.name}</h3>
+                <p className="text-[11px] text-teal-200/80">اختر التقييم للبدء في الرصد مباشرة بنقرة واحدة</p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleCardClick('assessments')}
+              className="text-xs font-bold text-teal-300 hover:text-white flex items-center gap-1 cursor-pointer"
+            >
+              <span>عرض الكل</span>
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+            {activeMonth.assessments.map((assessNum) => {
+              const count = currentMonthRecords.filter(r => r.assess_num === assessNum).length;
+              return (
+                <button
+                  key={assessNum}
+                  onClick={() => {
+                    if (!isComplete) {
+                      setShowIncompleteNotice(true);
+                      onOpenProfile();
+                      return;
+                    }
+                    if (activeMonth) {
+                      onOpenAssessment(activeMonth, assessNum, activeMonth.termId);
+                    }
+                  }}
+                  className="p-2.5 rounded-2xl bg-white/10 hover:bg-teal-500/30 border border-white/15 hover:border-teal-400/50 transition-all flex flex-col items-center justify-center gap-1 active:scale-95 cursor-pointer text-center"
+                >
+                  <span className="text-xs font-black text-white">تقييم {assessNum}</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    count > 0 ? 'bg-emerald-500/30 text-emerald-300' : 'bg-slate-700/60 text-slate-400'
+                  }`}>
+                    {count > 0 ? `${count} مسجل` : 'غير مرصود'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
 
       {/* Main Feature Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4 w-full max-w-2xl px-1 sm:px-0">
@@ -194,9 +284,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.05 }}
           onClick={() => handleCardClick('assessments')}
-          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
+          className={`group relative bg-white/80 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white transition-all duration-300 active:scale-95 cursor-pointer ${
+            focusMode ? 'border-rose-300 ring-2 ring-rose-500/20' : 'border-white'
+          }`}
         >
           {!isComplete && (
             <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
@@ -206,16 +298,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-rose-400 to-orange-400 text-white shadow-lg shadow-rose-400/30 flex items-center justify-center transition-all group-hover:shadow-rose-400/50 group-hover:scale-110 duration-300">
             <Award className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
-          <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-rose-500 transition-colors">التقييمات</span>
+          <span className="text-xs sm:text-base font-black text-slate-800 group-hover:text-rose-600 transition-colors">التقييمات</span>
         </motion.button>
 
         {/* Students */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.1 }}
           onClick={() => handleCardClick('students')}
-          className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
+          className={`group relative bg-white/80 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white transition-all duration-300 active:scale-95 cursor-pointer ${
+            focusMode ? 'border-blue-300 ring-2 ring-blue-500/20' : 'border-white'
+          }`}
         >
           {!isComplete && (
             <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-xs">
@@ -225,14 +319,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-lg shadow-blue-400/30 flex items-center justify-center transition-all group-hover:shadow-blue-400/50 group-hover:scale-110 duration-300">
             <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
-          <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-blue-500 transition-colors">الطلاب</span>
+          <span className="text-xs sm:text-base font-black text-slate-800 group-hover:text-blue-600 transition-colors">الطلاب</span>
         </motion.button>
 
-        {/* Custom Reminders - Dedicated Icon Card */}
+        {/* Custom Reminders */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.15 }}
           onClick={() => {
             if (!isComplete) {
               setShowIncompleteNotice(true);
@@ -258,11 +352,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-amber-600 transition-colors">إدارة التنبيهات</span>
         </motion.button>
 
-        {/* Archive - Dedicated Icon Card */}
+        {/* Archive */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.35 }}
+          transition={{ delay: 0.2 }}
           onClick={() => {
             if (!isComplete) {
               setShowIncompleteNotice(true);
@@ -288,7 +382,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.25 }}
           onClick={() => handleCardClick('reports')}
           className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
         >
@@ -307,7 +401,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.3 }}
           onClick={() => handleCardClick('stats')}
           className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
         >
@@ -326,7 +420,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.35 }}
           onClick={() => handleCardClick('search')}
           className="group relative bg-white/70 backdrop-blur-xl rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:bg-white/90 transition-all duration-300 active:scale-95 cursor-pointer"
         >
@@ -341,11 +435,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <span className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-violet-500 transition-colors">البحث</span>
         </motion.button>
 
-        {/* Student Messages - Dedicated Feature Card */}
+        {/* Student Messages */}
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.55 }}
+          transition={{ delay: 0.4 }}
           onClick={() => {
             if (!isComplete) {
               setShowIncompleteNotice(true);
@@ -371,7 +465,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.45 }}
           onClick={() => handleCardClick('admin')}
           className="group relative col-span-2 sm:col-span-1 bg-gradient-to-r from-[#0f2b5c] via-[#113264] to-[#059669] rounded-3xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col items-center justify-center gap-2 sm:gap-3 shadow-xl shadow-[#0f2b5c]/25 hover:shadow-2xl hover:shadow-[#0f2b5c]/35 transition-all duration-300 active:scale-95 border border-emerald-400/30 cursor-pointer"
         >
@@ -387,22 +481,29 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </motion.button>
       </div>
 
-      {/* Footer / Tech Support */}
-      <div className="flex flex-col items-center gap-4 pt-6 pb-2 w-full mt-auto">
-        <a 
-          href="https://wa.me/201030302005" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 bg-gradient-to-r from-[#059669] to-[#0f2b5c] text-white px-6 py-3 rounded-full shadow-lg shadow-emerald-700/25 hover:shadow-emerald-700/40 transition-all hover:-translate-y-0.5 active:scale-95"
-        >
-          <MessageCircle className="w-5 h-5 text-amber-300" />
-          <span className="font-bold text-sm">الدعم الفني</span>
-        </a>
-        <div className="text-sm font-bold text-[#0f2b5c] tracking-wide">
-          إعداد وتصميم / علاء الوكيل
+      {/* Footer / Tech Support - Minimized in Focus Mode */}
+      {!focusMode ? (
+        <div className="flex flex-col items-center gap-4 pt-6 pb-2 w-full mt-auto">
+          <a 
+            href="https://wa.me/201030302005" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-gradient-to-r from-[#059669] to-[#0f2b5c] text-white px-6 py-3 rounded-full shadow-lg shadow-emerald-700/25 hover:shadow-emerald-700/40 transition-all hover:-translate-y-0.5 active:scale-95"
+          >
+            <MessageCircle className="w-5 h-5 text-amber-300" />
+            <span className="font-bold text-sm">الدعم الفني</span>
+          </a>
+          <div className="text-sm font-bold text-[#0f2b5c] tracking-wide">
+            إعداد وتصميم / علاء الوكيل
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="pt-4 pb-2 text-xs font-bold text-slate-400 text-center select-none">
+          منصة تقييماتي — وضع التركيز المباشر
+        </div>
+      )}
     </div>
   );
 };
+
 

@@ -30,11 +30,11 @@ export const InstallButton: React.FC<InstallButtonProps> = ({
       }
     } else {
       // Trigger global install helper guide
-      const installBtn = document.querySelector('aside [title="تثبيت التطبيق على هاتفك"], div [title="تثبيت التطبيق على هاتفك"]') as HTMLElement;
+      const installBtn = document.querySelector('[title="تثبيت التطبيق على هاتفك"]') as HTMLElement;
       if (installBtn) {
         installBtn.click();
       } else {
-        alert('لتثبيت التطبيق: افتح قائمة خيارات المتصفح (⋮) ثم اختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية"');
+        alert('لتثبيت التطبيق كتطبيق حقيقي (PWA): افتح الرابط في متصفح Google Chrome واضغط على نقاط القائمة (⋮) ثم اختر «تثبيت التطبيق» (Install App).');
       }
     }
   };

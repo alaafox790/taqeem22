@@ -148,23 +148,32 @@ export const FloatingInstallButton: React.FC = () => {
               {/* Body Content */}
               <div className="p-5 space-y-4 text-slate-700">
                 {/* Android Section */}
-                <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-2xl p-3.5">
-                  <div className="flex items-center gap-2 font-black text-slate-800 text-sm mb-2">
+                <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-2xl p-3.5 space-y-2.5">
+                  <div className="flex items-center gap-2 font-black text-slate-800 text-sm">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                    <span>لهواتف أندرويد (Google Chrome):</span>
+                    <span>لهواتف أندرويد (تثبيت كتطبيق حقيقي):</span>
                   </div>
-                  <ol className="text-xs space-y-2 text-slate-600 pr-1">
-                    <li className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[11px] flex items-center justify-center shrink-0">1</span>
-                      <span>اضغط على قائمة الثلاث نقاط <MoreVertical className="w-3.5 h-3.5 inline text-slate-600 mx-0.5" /> بأعلى المتصفح.</span>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-xs text-amber-900 leading-relaxed font-medium">
+                    ⚠️ <strong>ملاحظة هامة:</strong> إذا فتحت الرابط من داخل (واتساب أو فيسبوك أو ماسنجر)، اضغط على نقاط القائمة (⋮) واختر <strong>«فتح في متصفح Chrome»</strong> أولاً ليتم تثبيته كتطبيق حقيقي وليس مجرد اختصار.
+                  </div>
+
+                  <ol className="text-xs space-y-2 text-slate-700 pr-1">
+                    <li className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                      <span>افتح الرابط في متصفح <strong>Google Chrome</strong>.</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[11px] flex items-center justify-center shrink-0">2</span>
-                      <span>اختر <strong>«تثبيت التطبيق»</strong> أو <strong>«إضافة إلى الشاشة الرئيسية»</strong>.</span>
+                    <li className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                      <span>اضغط على قائمة الثلاث نقاط <MoreVertical className="w-3.5 h-3.5 inline text-slate-600 mx-0.5" /> بأعلى اليسار.</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[11px] flex items-center justify-center shrink-0">3</span>
-                      <span>اضغط <strong>«تثبيت»</strong> وسيعمل التطبيق كبرنامج مستقل وسريع بدون إنترنت.</span>
+                    <li className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                      <span>اختر خيار <strong>«تثبيت التطبيق» (Install App)</strong> 📲.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">4</span>
+                      <span>سيتم تثبيته في قائمة تطبيقات هاتفك كبرنامج مستقل بالكامل (PWA WebAPK) بشاشة بداية وبدون شريط المتصفح ويعمل بسرعة وأمان.</span>
                     </li>
                   </ol>
                 </div>
