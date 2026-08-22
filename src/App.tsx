@@ -20,6 +20,7 @@ import { RemindersModal } from './components/RemindersModal';
 import { TeacherMessagesModal } from './components/TeacherMessagesModal';
 import { Toast, ToastMessage } from './components/Toast';
 import { SnackbarReminder } from './components/SnackbarReminder';
+import { FloatingInstallButton } from './components/FloatingInstallButton';
 import { LoginScreen, ManagementLoginData, StudentLoginData } from './components/LoginScreen';
 import { StudentPortal } from './components/StudentPortal';
 
@@ -878,23 +879,32 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return (
+      <>
+        <FloatingInstallButton />
+        <LoginScreen onLogin={handleLogin} />
+      </>
+    );
   }
 
   if (studentSession) {
     return (
-      <StudentPortal
-        phone={studentSession.phone}
-        studentCode={studentSession.studentCode}
-        teacher={teacher}
-        academicYear={academicYear}
-        onLogout={handleLogout}
-      />
+      <>
+        <FloatingInstallButton />
+        <StudentPortal
+          phone={studentSession.phone}
+          studentCode={studentSession.studentCode}
+          teacher={teacher}
+          academicYear={academicYear}
+          onLogout={handleLogout}
+        />
+      </>
     );
   }
 
   return (
     <div className="min-h-screen max-w-full overflow-x-hidden bg-[#fafcff] text-slate-800 font-['Tajawal',sans-serif] pb-16 dir-rtl transition-colors duration-200">
+      <FloatingInstallButton />
       
       {/* Opening Splash Screen */}
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}

@@ -39,7 +39,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onLogout,
   reminders,
   onOpenRemindersModal,
-  onToggleReminderComplete
+  onToggleReminderComplete,
+  isInstallable
 }) => {
   const [showAltText, setShowAltText] = useState(false);
   const [showIncompleteNotice, setShowIncompleteNotice] = useState(false);
