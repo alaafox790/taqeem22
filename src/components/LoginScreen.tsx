@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { 
   Phone, LogIn, ChevronRight, Lock, Shield, UserCheck, KeyRound, 
-  BookOpen, Check, GraduationCap, User, School, Sparkles, Hash 
+  BookOpen, Check, GraduationCap, User, School, Sparkles, Hash, Download, Smartphone 
 } from 'lucide-react';
 import { motion, useAnimation, useMotionValue, useTransform } from 'motion/react';
+import { InstallButton } from './InstallButton';
 
 export interface StudentLoginData {
   isStudent: true;
@@ -486,6 +487,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                   />
                 </motion.div>
               </div>
+            </div>
+
+            {/* Direct PWA Install Button */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-center">
+              <InstallButton 
+                variant="outline"
+                label="تثبيت التطبيق على هاتفك المحمول 📲"
+                className="w-full justify-center py-2.5"
+              />
             </div>
           </form>
         </div>

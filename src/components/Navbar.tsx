@@ -90,16 +90,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
             {/* Teacher Info Button - Mobile & Desktop */}
-            <button
-              onClick={onOpenProfile}
-              className="flex md:hidden items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/80 backdrop-blur-md text-slate-700 hover:bg-white transition-all text-xs font-bold shrink-0 shadow-sm border border-slate-200"
-            >
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white font-extrabold text-[11px] flex items-center justify-center">
-                {teacher.name.charAt(0) || 'م'}
-              </div>
-              <span className="max-w-[80px] truncate">{teacher.name}</span>
-              <Settings className="w-3.5 h-3.5 text-slate-400" />
-            </button>
+            <div className="flex items-center gap-1.5 md:hidden">
+              <InstallButton variant="pill" label="تثبيت" className="py-1 px-2 text-[10px]" />
+              <button
+                onClick={onOpenProfile}
+                className="flex items-center gap-2 px-2 py-1 rounded-xl bg-white/80 backdrop-blur-md text-slate-700 hover:bg-white transition-all text-xs font-bold shrink-0 shadow-sm border border-slate-200"
+              >
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white font-extrabold text-[11px] flex items-center justify-center">
+                  {teacher.name.charAt(0) || 'م'}
+                </div>
+                <span className="max-w-[70px] truncate">{teacher.name}</span>
+                <Settings className="w-3 h-3 text-slate-400" />
+              </button>
+            </div>
           </div>
 
           {/* Center / Bottom: Navigation Tabs Bar */}
@@ -186,6 +189,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Left side: Teacher Profile & Status */}
           <div className="hidden md:flex items-center gap-2">
             
+            {/* Install App Button */}
+            <InstallButton variant="pill" label="تثبيت التطبيق" className="px-2.5 py-1.5" />
+
             {/* Student Messages Button */}
             {onOpenStudentMessages && (
               <button
